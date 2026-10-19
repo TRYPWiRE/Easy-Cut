@@ -1,0 +1,8 @@
+{
+  "id": "example-pack",
+  "name": "Example Pack",
+  "version": "0.1.0",
+  "description": "Shows how an extension adds a filter, an animation and a video effect.",
+  "provides": ["filters", "animations", "effects"],
+  "min_app": "0.1.0"
+}

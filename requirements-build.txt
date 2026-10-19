@@ -1,0 +1,4 @@
+-r requirements.txt
+pyinstaller>=6.0
+# only used by tools/make_icon.py; kept below 12 so it doesn't clash with moviepy in other projects
+pillow>=10,<12
