@@ -1,0 +1,35 @@
+{
+  "id": "stylize-fx",
+  "name": "Stylize FX",
+  "version": "1.0.0",
+  "category": "Effects",
+  "description": "Creative looks: soft blur, crisp sharpen, dreamy glow, posterize and emboss.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "effect",
+      "id": "sfx-blur",
+      "name": "Blur"
+    },
+    {
+      "type": "effect",
+      "id": "sfx-sharpen",
+      "name": "Sharpen"
+    },
+    {
+      "type": "effect",
+      "id": "sfx-glow",
+      "name": "Glow"
+    },
+    {
+      "type": "effect",
+      "id": "sfx-posterize",
+      "name": "Posterize"
+    },
+    {
+      "type": "effect",
+      "id": "sfx-emboss",
+      "name": "Emboss"
+    }
+  ]
+}

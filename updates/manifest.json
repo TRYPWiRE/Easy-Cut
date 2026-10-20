@@ -1,9 +1,517 @@
 {
   "app": {
-    "version": "0.1.0",
-    "url": "https://github.com/TRYPWiRE/Easy-Cut/releases/download/v0.1.0/EasyCutSetup-0.1.0.exe",
-    "sha256": "2bac7b3f2590d06056ef890dd59218a92d005a190f162ee1810ac3968e247113",
+    "version": "2.0.0",
+    "url": "https://github.com/TRYPWiRE/Easy-Cut/releases/download/v2.0.0/EasyCutSetup-2.0.0.exe",
+    "sha256": "99839905c786a1fe62926e0d916caec9d4b09cbd7e7c623d997f80fcae0b4e07",
     "notes": ""
   },
-  "extensions": []
+  "extensions": [
+    {
+      "id": "bold-text",
+      "name": "Bold Text Styles",
+      "version": "1.0.0",
+      "description": "Chunky title looks: 3D extrude, comic pop, chrome, rainbow and retro stripes.",
+      "provides": [],
+      "category": "Text",
+      "items": [
+        {
+          "type": "text_style",
+          "id": "txt-3d",
+          "name": "3D Extrude"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-comic",
+          "name": "Comic Pop"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-chrome",
+          "name": "Chrome"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-rainbow",
+          "name": "Rainbow"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-retro",
+          "name": "Retro Stripes"
+        }
+      ],
+      "size": 1328,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/bold-text-1.0.0.zip",
+      "sha256": "04ed2de18ab83b9aa7739c6572c182196f091f61837d5af2b6a1fc5c9a85536b"
+    },
+    {
+      "id": "cinematic-filters",
+      "name": "Cinematic Filters",
+      "version": "1.0.0",
+      "description": "Film-grade colour looks: teal & orange blockbuster, bleach bypass, moody blues and golden warmth.",
+      "provides": [],
+      "category": "Filters",
+      "items": [
+        {
+          "type": "filter",
+          "id": "cine-teal-orange",
+          "name": "Teal & Orange"
+        },
+        {
+          "type": "filter",
+          "id": "cine-bleach",
+          "name": "Bleach Bypass"
+        },
+        {
+          "type": "filter",
+          "id": "cine-moody-blue",
+          "name": "Moody Blue"
+        },
+        {
+          "type": "filter",
+          "id": "cine-golden-hour",
+          "name": "Golden Hour"
+        },
+        {
+          "type": "filter",
+          "id": "cine-matte",
+          "name": "Matte Film"
+        }
+      ],
+      "size": 1009,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/cinematic-filters-1.0.0.zip",
+      "sha256": "06c857fb928a506c93309c73ef6ae439fb20cebc8465365a9d3c3cdfe49fec57"
+    },
+    {
+      "id": "display-fonts",
+      "name": "Display Fonts",
+      "version": "1.0.0",
+      "description": "Big, bold headline fonts: Bungee, Monoton, Bangers, Creepster and Righteous.",
+      "provides": [],
+      "category": "Fonts",
+      "items": [
+        {
+          "type": "font",
+          "id": "fnt-bungee",
+          "name": "Bungee"
+        },
+        {
+          "type": "font",
+          "id": "fnt-monoton",
+          "name": "Monoton"
+        },
+        {
+          "type": "font",
+          "id": "fnt-bangers",
+          "name": "Bangers"
+        },
+        {
+          "type": "font",
+          "id": "fnt-creepster",
+          "name": "Creepster"
+        },
+        {
+          "type": "font",
+          "id": "fnt-righteous",
+          "name": "Righteous"
+        }
+      ],
+      "size": 203179,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/display-fonts-1.0.0.zip",
+      "sha256": "bc0f5babca5bf9b7f51a11018bfc81a812c7d5ad30c0b536a2e2091fdb847127"
+    },
+    {
+      "id": "dynamic-transitions",
+      "name": "Dynamic Transitions",
+      "version": "1.0.0",
+      "description": "High-energy cuts: spin, wipes, a bouncy pop and a swinging entrance.",
+      "provides": [],
+      "category": "Transitions",
+      "items": [
+        {
+          "type": "transition",
+          "id": "dyn-spin",
+          "name": "Spin"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-wipe-right",
+          "name": "Wipe Right"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-wipe-down",
+          "name": "Wipe Down"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-pop",
+          "name": "Pop"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-swing",
+          "name": "Swing In"
+        }
+      ],
+      "size": 776,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/dynamic-transitions-1.0.0.zip",
+      "sha256": "e684daf2f088d853083700f80194cca4c6673cc15f859e77265492bc62ac06d4"
+    },
+    {
+      "id": "essential-transitions",
+      "name": "Essential Transitions",
+      "version": "1.0.0",
+      "description": "The everyday cuts: flash to white, zoom in, zoom out and smooth slides up and down.",
+      "provides": [],
+      "category": "Transitions",
+      "items": [
+        {
+          "type": "transition",
+          "id": "ess-dip-white",
+          "name": "Dip to White"
+        },
+        {
+          "type": "transition",
+          "id": "ess-zoom-in",
+          "name": "Zoom In"
+        },
+        {
+          "type": "transition",
+          "id": "ess-zoom-out",
+          "name": "Zoom Out"
+        },
+        {
+          "type": "transition",
+          "id": "ess-slide-up",
+          "name": "Slide Up"
+        },
+        {
+          "type": "transition",
+          "id": "ess-slide-down",
+          "name": "Slide Down"
+        }
+      ],
+      "size": 808,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/essential-transitions-1.0.0.zip",
+      "sha256": "44981b456e0306550b75c20252b6a8de85a710a48709afadbde5f95f5177731f"
+    },
+    {
+      "id": "fun-pack",
+      "name": "Fun Pack",
+      "version": "1.0.0",
+      "description": "Playful, bouncy motion: elastic snap, wobble, bounce drop, heartbeat and whirl.",
+      "provides": [],
+      "category": "Animations",
+      "items": [
+        {
+          "type": "animation",
+          "id": "fun-elastic",
+          "name": "Elastic"
+        },
+        {
+          "type": "animation",
+          "id": "fun-wobble",
+          "name": "Wobble"
+        },
+        {
+          "type": "animation",
+          "id": "fun-bounce",
+          "name": "Bounce Drop"
+        },
+        {
+          "type": "animation",
+          "id": "fun-heartbeat",
+          "name": "Heartbeat"
+        },
+        {
+          "type": "animation",
+          "id": "fun-whirl",
+          "name": "Whirl"
+        }
+      ],
+      "size": 771,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/fun-pack-1.0.0.zip",
+      "sha256": "d4723ac132769ba8cb9df0d4517c300345ea53a781805af8345675ffecae195a"
+    },
+    {
+      "id": "motion-pack",
+      "name": "Motion Pack",
+      "version": "1.0.0",
+      "description": "Smooth, polished entrances and exits: spin, swing, zoom out, rise and sweep.",
+      "provides": [],
+      "category": "Animations",
+      "items": [
+        {
+          "type": "animation",
+          "id": "mot-spin",
+          "name": "Spin"
+        },
+        {
+          "type": "animation",
+          "id": "mot-swing",
+          "name": "Swing"
+        },
+        {
+          "type": "animation",
+          "id": "mot-zoom-out",
+          "name": "Zoom Out"
+        },
+        {
+          "type": "animation",
+          "id": "mot-rise",
+          "name": "Rise"
+        },
+        {
+          "type": "animation",
+          "id": "mot-sweep",
+          "name": "Sweep"
+        }
+      ],
+      "size": 765,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/motion-pack-1.0.0.zip",
+      "sha256": "affb7764c84f66ae4f77b27750eaa717dd27cec1e704a89912c68bdb3d429e9a"
+    },
+    {
+      "id": "neon-text",
+      "name": "Neon & Glow Text",
+      "version": "1.0.0",
+      "description": "Glowing title styles: neon tube, electric outline, glitch, hologram and fire.",
+      "provides": [],
+      "category": "Text",
+      "items": [
+        {
+          "type": "text_style",
+          "id": "txt-neon",
+          "name": "Neon Glow"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-electric",
+          "name": "Electric"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-glitch",
+          "name": "Glitch"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-hologram",
+          "name": "Hologram"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-fire",
+          "name": "Fire"
+        }
+      ],
+      "size": 1433,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/neon-text-1.0.0.zip",
+      "sha256": "c57a910e9b564857ebd62fdd3672df3c71a1e67e8181aa39cac33c976fe48858"
+    },
+    {
+      "id": "retro-fonts",
+      "name": "Retro & Script Fonts",
+      "version": "1.0.0",
+      "description": "Arcade, script and sci-fi fonts: Press Start 2P, Pacifico, Lobster, Audiowide and Orbitron.",
+      "provides": [],
+      "category": "Fonts",
+      "items": [
+        {
+          "type": "font",
+          "id": "fnt-press-start",
+          "name": "Press Start 2P"
+        },
+        {
+          "type": "font",
+          "id": "fnt-pacifico",
+          "name": "Pacifico"
+        },
+        {
+          "type": "font",
+          "id": "fnt-lobster",
+          "name": "Lobster"
+        },
+        {
+          "type": "font",
+          "id": "fnt-audiowide",
+          "name": "Audiowide"
+        },
+        {
+          "type": "font",
+          "id": "fnt-orbitron",
+          "name": "Orbitron"
+        }
+      ],
+      "size": 401060,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/retro-fonts-1.0.0.zip",
+      "sha256": "f2ad875391116e9e928107b97c099b185f245d1beb9c15b92899275197b135be"
+    },
+    {
+      "id": "retro-fx",
+      "name": "Retro FX",
+      "version": "1.0.0",
+      "description": "Old-school looks: VHS tape, film grain, vignette, pixelate and RGB split.",
+      "provides": [],
+      "category": "Effects",
+      "items": [
+        {
+          "type": "effect",
+          "id": "rfx-vhs",
+          "name": "VHS"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-grain",
+          "name": "Film Grain"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-vignette",
+          "name": "Vignette"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-pixelate",
+          "name": "Pixelate"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-rgb-split",
+          "name": "RGB Split"
+        }
+      ],
+      "size": 1678,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/retro-fx-1.0.0.zip",
+      "sha256": "c7f22c34d8c51e23672513b3c1b5e3c3dbf03b66041b6602749a745e4675dcca"
+    },
+    {
+      "id": "stylize-fx",
+      "name": "Stylize FX",
+      "version": "1.0.0",
+      "description": "Creative looks: soft blur, crisp sharpen, dreamy glow, posterize and emboss.",
+      "provides": [],
+      "category": "Effects",
+      "items": [
+        {
+          "type": "effect",
+          "id": "sfx-blur",
+          "name": "Blur"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-sharpen",
+          "name": "Sharpen"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-glow",
+          "name": "Glow"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-posterize",
+          "name": "Posterize"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-emboss",
+          "name": "Emboss"
+        }
+      ],
+      "size": 1546,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/stylize-fx-1.0.0.zip",
+      "sha256": "dd33ccf49afcde3eb433f70682d3d9c0767b80f40c333e0b3cd9071601c90475"
+    },
+    {
+      "id": "text-animations",
+      "name": "Text Animations",
+      "version": "1.0.0",
+      "description": "Animated titles: typewriter, wipe, rise and drop reveals, and a smooth glide-in.",
+      "provides": [],
+      "category": "Text",
+      "items": [
+        {
+          "type": "animation",
+          "id": "tan-typewriter",
+          "name": "Typewriter"
+        },
+        {
+          "type": "animation",
+          "id": "tan-wipe",
+          "name": "Wipe Reveal"
+        },
+        {
+          "type": "animation",
+          "id": "tan-rise",
+          "name": "Rise Reveal"
+        },
+        {
+          "type": "animation",
+          "id": "tan-drop",
+          "name": "Drop Reveal"
+        },
+        {
+          "type": "animation",
+          "id": "tan-glide",
+          "name": "Glide In"
+        }
+      ],
+      "size": 800,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/text-animations-1.0.0.zip",
+      "sha256": "f10861d97004d24e018dd81dba952d4631b83de45836879637288e1e4fa54d9c"
+    },
+    {
+      "id": "vibe-filters",
+      "name": "Vibe Filters",
+      "version": "1.0.0",
+      "description": "Bold social-media looks: dreamy pastels, neon nights, cyber pink, retro 80s and icy arctic.",
+      "provides": [],
+      "category": "Filters",
+      "items": [
+        {
+          "type": "filter",
+          "id": "vibe-pastel",
+          "name": "Pastel Dream"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-neon",
+          "name": "Neon Nights"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-cyber-pink",
+          "name": "Cyber Pink"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-retro80",
+          "name": "Retro 80s"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-arctic",
+          "name": "Arctic"
+        }
+      ],
+      "size": 920,
+      "min_app": "1.0.0",
+      "url": "https://raw.githubusercontent.com/TRYPWiRE/Easy-Cut/main/updates/extensions/vibe-filters-1.0.0.zip",
+      "sha256": "9b7fa27801acd0bfe032e1b4c7a32e3905a613abc76bdcff02e6a02f2cd13868"
+    }
+  ]
 }

@@ -1,0 +1,35 @@
+{
+  "id": "dynamic-transitions",
+  "name": "Dynamic Transitions",
+  "version": "1.0.0",
+  "category": "Transitions",
+  "description": "High-energy cuts: spin, wipes, a bouncy pop and a swinging entrance.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "transition",
+      "id": "dyn-spin",
+      "name": "Spin"
+    },
+    {
+      "type": "transition",
+      "id": "dyn-wipe-right",
+      "name": "Wipe Right"
+    },
+    {
+      "type": "transition",
+      "id": "dyn-wipe-down",
+      "name": "Wipe Down"
+    },
+    {
+      "type": "transition",
+      "id": "dyn-pop",
+      "name": "Pop"
+    },
+    {
+      "type": "transition",
+      "id": "dyn-swing",
+      "name": "Swing In"
+    }
+  ]
+}

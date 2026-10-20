@@ -59,3 +59,16 @@ def asset(*parts) -> str:
 
 def is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
+
+
+def recordings_dir() -> str:
+    """Where screen recordings are saved (a visible folder - recordings are the user's own videos)."""
+    from . import settings
+    custom = settings.get("recordings_dir", "")
+    if custom:
+        base = custom
+    else:
+        videos = os.path.join(os.path.expanduser("~"), "Videos")
+        base = os.path.join(videos if os.path.isdir(videos) else os.path.expanduser("~"), "Easy-Cut Recordings")
+    os.makedirs(base, exist_ok=True)
+    return base

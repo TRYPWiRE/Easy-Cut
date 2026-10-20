@@ -1,0 +1,35 @@
+{
+  "id": "display-fonts",
+  "name": "Display Fonts",
+  "version": "1.0.0",
+  "category": "Fonts",
+  "description": "Big, bold headline fonts: Bungee, Monoton, Bangers, Creepster and Righteous.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "font",
+      "id": "fnt-bungee",
+      "name": "Bungee"
+    },
+    {
+      "type": "font",
+      "id": "fnt-monoton",
+      "name": "Monoton"
+    },
+    {
+      "type": "font",
+      "id": "fnt-bangers",
+      "name": "Bangers"
+    },
+    {
+      "type": "font",
+      "id": "fnt-creepster",
+      "name": "Creepster"
+    },
+    {
+      "type": "font",
+      "id": "fnt-righteous",
+      "name": "Righteous"
+    }
+  ]
+}

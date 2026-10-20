@@ -172,6 +172,91 @@ class PreviewCanvas(QWidget):
             self.filesDropped.emit([p for p in paths if p])
 
 
+class LevelMeter(QWidget):
+    """Slim stereo peak/RMS meter (green -> amber -> red) with peak hold, like a mixing desk."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(132, 22)
+        self.peak = [0.0, 0.0]
+        self.rms = [0.0, 0.0]
+        self.hold = [0.0, 0.0]
+        self.hold_t = [0, 0]
+        self.setToolTip("Output level (peak + average). Red means it's about to clip.")
+        from PyQt6.QtCore import QTimer
+        self.decay = QTimer(self, interval=40, timeout=self._decay)
+
+    @staticmethod
+    def _norm(v):
+        import math
+        if v <= 0.00001:
+            return 0.0
+        db = 20 * math.log10(v)
+        return max(0.0, min(1.0, (db + 48) / 48))          # -48 dB .. 0 dB
+
+    def set_levels(self, peak, rms=None):
+        if peak is None:
+            if not self.decay.isActive():
+                self.decay.start()
+            return
+        self.decay.stop()
+        for i in (0, 1):
+            self.peak[i] = self._norm(peak[i])
+            self.rms[i] = self._norm(rms[i]) if rms else self.peak[i]
+            if self.peak[i] >= self.hold[i]:
+                self.hold[i] = self.peak[i]
+                self.hold_t[i] = 25
+            elif self.hold_t[i] > 0:
+                self.hold_t[i] -= 1
+            else:
+                self.hold[i] = max(self.peak[i], self.hold[i] - 0.02)
+        self.update()
+
+    def _decay(self):
+        busy = False
+        for i in (0, 1):
+            self.peak[i] = max(0.0, self.peak[i] - 0.06)
+            self.rms[i] = max(0.0, self.rms[i] - 0.06)
+            self.hold[i] = max(0.0, self.hold[i] - 0.03)
+            busy = busy or self.hold[i] > 0
+        self.update()
+        if not busy:
+            self.decay.stop()
+
+    def paintEvent(self, ev):
+        from PyQt6.QtGui import QLinearGradient
+        c = theme.C
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w = self.width() - 14
+        bh = 7
+        g = QLinearGradient(14, 0, 14 + w, 0)
+        g.setColorAt(0, QColor("#2ecc71"))
+        g.setColorAt(0.72, QColor("#2ecc71"))
+        g.setColorAt(0.86, QColor("#f1c40f"))
+        g.setColorAt(1.0, QColor("#ff3b30"))
+        f = QFont(self.font())
+        f.setPointSizeF(6.5)
+        p.setFont(f)
+        for i, y in ((0, 3), (1, 12)):
+            p.setPen(QColor(c["text_dim"]))
+            p.drawText(QRectF(0, y - 2, 12, bh + 4), Qt.AlignmentFlag.AlignCenter, "LR"[i])
+            track = QRectF(14, y, w, bh)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(c["pressed"]))
+            p.drawRoundedRect(track, 2, 2)
+            if self.peak[i] > 0:
+                p.setBrush(g)
+                p.setOpacity(0.45)
+                p.drawRoundedRect(QRectF(14, y, w * self.peak[i], bh), 2, 2)
+                p.setOpacity(1.0)
+                p.drawRoundedRect(QRectF(14, y, w * self.rms[i], bh), 2, 2)
+            if self.hold[i] > 0.01:
+                x = 14 + w * self.hold[i]
+                p.setBrush(QColor("#ff3b30") if self.hold[i] > 0.97 else QColor(c["text_strong"]))
+                p.drawRect(QRectF(x - 1.5, y, 2, bh))
+
+
 class PreviewPanel(QWidget):
     """Canvas + transport controls."""
 
@@ -200,6 +285,9 @@ class PreviewPanel(QWidget):
         for b in (self.btn_start, self.btn_back, self.btn_play, self.btn_fwd, self.btn_end):
             bar.addWidget(b)
         bar.addStretch(1)
+        self.meter = LevelMeter()
+        bar.addWidget(self.meter)
+        bar.addSpacing(8)
         self.info = QLabel("")
         self.info.setObjectName("Dim")
         self.info.setMinimumWidth(150)

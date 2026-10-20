@@ -1,0 +1,35 @@
+{
+  "id": "neon-text",
+  "name": "Neon & Glow Text",
+  "version": "1.0.0",
+  "category": "Text",
+  "description": "Glowing title styles: neon tube, electric outline, glitch, hologram and fire.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "text_style",
+      "id": "txt-neon",
+      "name": "Neon Glow"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-electric",
+      "name": "Electric"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-glitch",
+      "name": "Glitch"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-hologram",
+      "name": "Hologram"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-fire",
+      "name": "Fire"
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import sys
 import traceback
 import zipfile
 
-from . import __version__, animations, filters
+from . import __version__, animations, filters, textrender
 from .config import cache_dir, data_path
 
 
@@ -55,23 +55,45 @@ class API:
     """What an extension's register(api) receives."""
     app_version = __version__
     Filter = filters.Filter
-    Animation = animations.Animation
+    Animation = animations.Motion
 
-    def __init__(self, ext_id):
+    def __init__(self, ext_id, folder=""):
         self.ext_id = ext_id
+        self.folder = folder          # the extension's own folder (for bundled files like fonts)
+
+    def path(self, *parts):
+        return os.path.join(self.folder, *parts)
 
     def register_filter(self, fid, name, matrix=None, contrast=1.0, brightness=0.0, lift=0.0, ffmpeg=None,
                         preview=None, swatch=None):
+        """A colour filter: 3x3 RGB matrix + tone settings (or an FFmpeg chain + numpy preview)."""
         return filters.register(filters.Filter(fid, name, matrix, contrast, brightness, lift, swatch, ffmpeg,
                                                preview, source=self.ext_id))
 
-    def register_animation(self, aid, name, scale="1", dx="0", dy="0", fade=False):
-        return animations.register(animations.Animation(aid, name, scale, dx, dy, fade, source=self.ext_id))
+    def register_animation(self, aid, name, scale="1", dx="0", dy="0", fade=False, rot="0", reveal=None,
+                           steps=0, kinds=("in", "out")):
+        """An in/out animation - expressions in E (eased) and P (linear) progress. See animations.py."""
+        return animations.register(animations.Motion(aid, name, scale, dx, dy, rot, fade, reveal, steps, kinds,
+                                                     source=self.ext_id))
+
+    def register_transition(self, tid, name, scale="1", dx="0", dy="0", rot="0", alpha="fade", veil=None,
+                            reveal=None, steps=0):
+        """A transition drawn on the incoming clip over the end of the outgoing one."""
+        return animations.register_transition(animations.Transition(tid, name, scale, dx, dy, rot, alpha, veil,
+                                                                    reveal, steps, source=self.ext_id))
 
     def register_effect(self, eid, name, ffmpeg, preview=None, swatch=None):
         """A video effect: an FFmpeg filter chain (may use {amount}) plus an optional preview function."""
         return filters.register_effect(filters.Filter(eid, name, ffmpeg=ffmpeg, preview=preview, swatch=swatch,
                                                       source=self.ext_id))
+
+    def register_text_style(self, sid, name, paint, pad=0.0, swatch=None):
+        """A text style: paint(painter, ctx) draws ctx.path (the letters) however it likes."""
+        return textrender.register_style(textrender.TextStyle(sid, name, paint, pad, self.ext_id, swatch))
+
+    def register_font(self, fid, name, filename):
+        """Load a font file bundled with the extension (path relative to the extension folder)."""
+        return textrender.register_font(fid, name, self.path(filename), self.ext_id)
 
 
 class Installed:
@@ -83,6 +105,8 @@ class Installed:
         self.version = manifest.get("version", "0.0.0")
         self.description = manifest.get("description", "")
         self.provides = manifest.get("provides", [])
+        self.category = manifest.get("category", "")
+        self.items = manifest.get("items", [])
         self.loaded = False
         self.error = ""
 
@@ -133,7 +157,7 @@ def load_one(ext: Installed):
         mod = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = mod
         spec.loader.exec_module(mod)
-        mod.register(API(ext.id))
+        mod.register(API(ext.id, ext.folder))
         ext.loaded = True
     except Exception:
         ext.error = traceback.format_exc(limit=3)

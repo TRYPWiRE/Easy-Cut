@@ -130,8 +130,20 @@ def apply_preview(bgr: np.ndarray, clip) -> np.ndarray:
     return np.ascontiguousarray(out)
 
 
-def ffmpeg_chain(clip) -> list:
-    """FFmpeg filters for the clip's colour stage (expects rgba frames)."""
+def _fmt(template, amount, w, h, uid):
+    """An effect's FFmpeg step: a template string ({amount} {w} {h} {short} {u}) or fn(amount, w, h, uid)."""
+    w = int(w or 1920)
+    h = int(h or 1080)
+    if callable(template):
+        return template(amount, w, h, uid)
+    return template.format(amount=amount, w=w, h=h, short=min(w, h), u=uid)
+
+
+def ffmpeg_chain(clip, w=None, h=None, uid="x") -> list:
+    """FFmpeg steps for the clip's colour stage and effects (expects rgba frames).
+
+    Items are plain filter strings, or ("graph", text) for effects that need a small sub-graph; those use
+    the labels [in] and [out]. `w`/`h` is the picture size so effects can scale with it."""
     f = get(clip.get("filter", "none"))
     m, c, b, lift = colour_params(clip)
     parts = []
@@ -143,9 +155,38 @@ def ffmpeg_chain(clip) -> list:
         expr = f"clip(((val*{1 - lift:.5f}+{lift * 255:.4f})-128)*{c:.5f}+128+{b * 255 + 0.5:.4f}\\,0\\,255)"
         parts.append(f"lutrgb=r='{expr}':g='{expr}':b='{expr}'")
     if f.ffmpeg:
-        parts.append(f.ffmpeg.format(amount=float(clip.get("filter_amount", 1.0))))
-    for fx in clip.get("fx", []) or []:
+        parts.append(_fmt(f.ffmpeg, float(clip.get("filter_amount", 1.0)), w, h, uid + "f"))
+    for i, fx in enumerate(clip.get("fx", []) or []):
         e = EFFECTS.get(fx.get("id"))
-        if e is not None and e.ffmpeg:
-            parts.append(e.ffmpeg.format(amount=float(fx.get("amount", 1.0))))
+        if e is None or not e.ffmpeg:
+            continue
+        amount = float(fx.get("amount", 1.0))
+        if amount <= 0.001:
+            continue
+        text = _fmt(e.ffmpeg, amount, w, h, f"{uid}e{i}")
+        parts.append(("graph", text) if "[in]" in text else text)
     return parts
+
+
+def chain_to_graph(parts, inp, out, uid):
+    """Turn ffmpeg_chain() output into filter-graph text from label [inp] to label [out]."""
+    segs = []
+    cur = inp
+    linear = []
+    n = 0
+    for item in parts + [None]:
+        if item is None or isinstance(item, tuple):
+            if linear or item is None:
+                nxt = out if item is None else f"{uid}c{n}"
+                segs.append(f"[{cur}]" + (",".join(linear) if linear else "null") + f"[{nxt}]")
+                cur = nxt
+                linear = []
+                n += 1
+            if item is not None:
+                nxt = f"{uid}c{n}"
+                segs.append(item[1].replace("[in]", f"[{cur}]").replace("[out]", f"[{nxt}]"))
+                cur = nxt
+                n += 1
+        else:
+            linear.append(item)
+    return ";".join(segs)

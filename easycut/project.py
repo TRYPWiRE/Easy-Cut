@@ -27,6 +27,16 @@ DEFAULT_CLIP = {
     "pitch": 0.0,               # semitones
     "volume": 1.0,
     "muted": False,
+    # music / audio tools
+    "pan": 0.0,                     # -1 left .. 1 right
+    "afade_in": 0.0,                # audio fade in/out (seconds) - the handles on the timeline clip
+    "afade_out": 0.0,
+    "eq_low": 0.0,                  # dB
+    "eq_mid": 0.0,
+    "eq_high": 0.0,
+    "compress": False,              # even out loud and quiet parts
+    "denoise": 0.0,                 # 0..1 background noise reduction
+    "reverb": 0.0,                  # 0..1
     # transform
     "fit": "fit",               # fit | fill
     "scale": 1.0,
@@ -44,6 +54,8 @@ DEFAULT_CLIP = {
     "anim_in_dur": 0.5,
     "anim_out": "none",
     "anim_out_dur": 0.5,
+    "trans_in": "none",             # transition from the previous clip (drawn before `start`)
+    "trans_dur": 0.5,
     # effects & compositing
     "crop": [0.0, 0.0, 0.0, 0.0],   # left, top, right, bottom (fractions)
     "flip_h": False,
@@ -64,6 +76,7 @@ DEFAULT_CLIP = {
     "text_bg": False,
     "text_bg_color": "#000000",
     "text_outline": True,
+    "text_style": "none",
     # extension data
     "fx": [],                       # extension video effects: [{"id", "amount"}]
     "ext": {},
@@ -106,6 +119,12 @@ class Clip(dict):
     def has_sound(self) -> bool:
         return self["kind"] in ("video", "audio") and self["has_audio"]
 
+    @property
+    def vis_start(self) -> float:
+        """When the clip first appears - earlier than `start` while its transition plays."""
+        from .animations import pre_roll
+        return self["start"] - pre_roll(self)
+
     def source_span(self) -> float:
         """How many source seconds the clip consumes."""
         return self["duration"] * self["speed"]
@@ -128,9 +147,9 @@ class Project:
         self.fps = 30
         self.background = "#000000"
         self.tracks = [
-            {"type": "video", "name": "Video 2", "hidden": False, "muted": False},
-            {"type": "video", "name": "Video 1", "hidden": False, "muted": False},
-            {"type": "audio", "name": "Audio 1", "hidden": False, "muted": False},
+            {"type": "video", "name": "Video 2", "hidden": False, "muted": False, "solo": False},
+            {"type": "video", "name": "Video 1", "hidden": False, "muted": False, "solo": False},
+            {"type": "audio", "name": "Audio 1", "hidden": False, "muted": False, "solo": False},
         ]
         self.clips = []
         self.media = []   # paths in the media bin
@@ -159,7 +178,7 @@ class Project:
             if self.tracks[ti]["hidden"]:
                 continue
             for c in self.clips_on(ti):
-                if c["start"] <= t < c.end and c.is_visual:
+                if c.vis_start <= t < c.end and c.is_visual:
                     out.append(c)
         return out
 
@@ -180,7 +199,8 @@ class Project:
     # ----------------------------------------------------------- editing
     def add_track(self, kind: str) -> int:
         n = len(self.tracks_of(kind)) + 1
-        t = {"type": kind, "name": f"{'Video' if kind == 'video' else 'Audio'} {n}", "hidden": False, "muted": False}
+        t = {"type": kind, "name": f"{'Video' if kind == 'video' else 'Audio'} {n}", "hidden": False, "muted": False,
+             "solo": False}
         if kind == "video":
             # new video tracks go on top
             self.tracks.insert(0, t)
@@ -251,6 +271,7 @@ class Project:
         # the animation-in belongs to the left piece, the animation-out to the right piece
         clip["anim_out"] = "none"
         right["anim_in"] = "none"
+        right["trans_in"] = "none"
         self.clips.append(right)
         return right
 
@@ -260,6 +281,32 @@ class Project:
         span = clip.source_span()
         clip["speed"] = speed
         clip["duration"] = max(0.05, min(span / speed, clip.max_duration()))
+
+    def detach_audio(self, clip):
+        """Move a video clip's sound onto its own audio clip (the video clip is muted). Returns the new clip."""
+        if clip["kind"] != "video" or not clip.has_sound:
+            return None
+        a = Clip(copy.deepcopy(dict(clip)))
+        a["id"] = new_id()
+        a["kind"] = "audio"
+        a["has_video"] = False
+        a["name"] = os.path.splitext(clip["name"])[0] + " (audio)"
+        a["anim_in"] = a["anim_out"] = a["trans_in"] = "none"
+        a["muted"] = False
+        clip["muted"] = True
+        tracks = self.tracks_of("audio")
+        for t in tracks:
+            if self.track_free(t, a["start"], a.end):
+                a["track"] = t
+                break
+        else:
+            a["track"] = self.add_track("audio")
+        self.clips.append(a)
+        return a
+
+    def soloed(self):
+        """Indexes of soloed tracks (empty = no solo)."""
+        return {i for i, t in enumerate(self.tracks) if t.get("solo")}
 
     def remove(self, clip):
         self.clips = [c for c in self.clips if c["id"] != clip["id"]]

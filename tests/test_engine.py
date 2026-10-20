@@ -284,18 +284,17 @@ class TestEffectsMatchExport(unittest.TestCase):
 class TestAnimations(unittest.TestCase):
     def test_in_out_progress(self):
         c = project.Clip(start=2.0, duration=4.0, anim_in="zoom", anim_in_dur=1.0, anim_out="fade", anim_out_dur=1.0)
-        a, s, dx, dy = animations.state(c, 2.0)
-        self.assertAlmostEqual(s, 0.55, places=3)
-        self.assertAlmostEqual(a, 0.0)
-        a, s, dx, dy = animations.state(c, 4.0)
-        self.assertAlmostEqual((a, s), (1.0, 1.0))
-        a, s, dx, dy = animations.state(c, 5.5)
-        self.assertAlmostEqual(a, 0.5, places=3)
+        st = animations.state(c, 2.0)
+        self.assertAlmostEqual(st["scale"], 0.55, places=3)
+        self.assertAlmostEqual(st["alpha"], 0.0)
+        st = animations.state(c, 4.0)
+        self.assertAlmostEqual((st["alpha"], st["scale"]), (1.0, 1.0))
+        self.assertAlmostEqual(animations.state(c, 5.5)["alpha"], 0.5, places=3)
 
     def test_slides(self):
         c = project.Clip(start=0, duration=3, anim_in="slide_left", anim_in_dur=1.0)
-        self.assertAlmostEqual(animations.state(c, 0)[2], -1.0)
-        self.assertAlmostEqual(animations.state(c, 2)[2], 0.0)
+        self.assertAlmostEqual(animations.state(c, 0)["dx"], -1.0)
+        self.assertAlmostEqual(animations.state(c, 2)["dx"], 0.0)
 
     def test_ffmpeg_expressions(self):
         c = project.Clip(start=1, duration=3, anim_in="pop", anim_out="slide_up")
@@ -303,7 +302,68 @@ class TestAnimations(unittest.TestCase):
         self.assertIn("sin", ex["scale"])
         self.assertIsNotNone(ex["dy"])
         self.assertIsNone(ex["dx"])
+        self.assertIsNone(ex["rot"])
         self.assertEqual(animations.ffmpeg_exprs(project.Clip())["scale"], None)
+
+    def test_expression_variables_dont_clash(self):
+        # "PI" must not be treated as the progress variable P
+        m = animations.Motion("t", "t", scale="(1+0*sin(PI*P))", rot="(10*E)")
+        text = animations._ff(m.scale, "EE", "PP")
+        self.assertIn("PI", text)
+        self.assertIn("(PP)", text)
+
+    def test_transition_pre_roll(self):
+        a = project.Clip(start=0, duration=2)
+        b = project.Clip(start=2, duration=2, trans_in="dissolve", trans_dur=0.8)
+        self.assertAlmostEqual(animations.pre_roll(b), 0.8)
+        self.assertAlmostEqual(b.vis_start, 1.2)
+        self.assertAlmostEqual(animations.state(b, 1.6)["alpha"], 0.5, places=3)
+        self.assertAlmostEqual(animations.pre_roll(a), 0.0)
+        # a transition can't start before the timeline does
+        c = project.Clip(start=0.3, duration=2, trans_in="dissolve", trans_dur=1.0)
+        self.assertAlmostEqual(animations.pre_roll(c), 0.3)
+
+    def test_transition_replaces_in_animation(self):
+        b = project.Clip(start=2, duration=2, trans_in="slide", anim_in="zoom")
+        kinds = [k for _, k, _, _ in animations.windows(b)]
+        self.assertEqual(kinds, ["trans"])
+
+    def test_dip_veil(self):
+        b = project.Clip(start=2, duration=2, trans_in="dip_black", trans_dur=1.0)
+        self.assertAlmostEqual(animations.state(b, 1.5)["veil"][1], 1.0, places=3)
+        self.assertEqual(animations.state(b, 1.2)["alpha"], 0.0)
+        self.assertAlmostEqual(animations.visible_from(b), 1.5)
+
+    def test_split_drops_transition_on_right_piece(self):
+        p = project.Project()
+        a = p.place(project.Clip(kind="text", text="a", duration=2))
+        b = p.place(project.Clip(kind="text", text="b", duration=4, trans_in="dissolve"))
+        right = p.split(b, b["start"] + 1)
+        self.assertEqual(b["trans_in"], "dissolve")
+        self.assertEqual(right["trans_in"], "none")
+        self.assertIsNotNone(a)
+
+
+class TestTransitionRender(unittest.TestCase):
+    def test_transitions_match_preview(self):
+        for tid in ("dissolve", "dip_black", "slide"):
+            p = project.Project()
+            a = p.place(p.clip_from_media(media.probe(path("photo.png")), duration=1.5))
+            a["filter"] = "bw"
+            b = p.place(p.clip_from_media(media.probe(path("clip.mp4")), duration=1.5))
+            b.update(trans_in=tid, trans_dur=0.8)
+            out = tmp(f"tr_{tid}.mp4")
+            render.Renderer(p, render.RenderOptions(out_path=out, encoder="cpu")).run()
+            self.assertAlmostEqual(media.probe(out).duration, 3.0, delta=0.1)
+            comp = compositor.Compositor()
+            W, H = 480, 270
+            r = media.FrameReader(out, (W, H))
+            for f in range(20, 50, 3):          # exact frame times through the transition
+                t = f / 30
+                d = np.abs(comp.compose(p, t, W, H).astype(int) - r.frame_at(t).astype(int)).mean()
+                self.assertLess(d, 5, f"{tid} t={t:.2f} differs by {d:.2f}")
+            r.close()
+            comp.close()
 
 
 class TestRender(unittest.TestCase):
@@ -445,6 +505,157 @@ class TestRender(unittest.TestCase):
         ff("-display_rotation", "90", "-i", path("portrait_src.mp4"), "-c", "copy", out)
         i = media.probe(out)
         self.assertGreater(i.height, i.width)
+
+
+class TestExportFormats(unittest.TestCase):
+    """v2 export: every format, rate control, range, loudness and the audio tools."""
+
+    @classmethod
+    def setUpClass(cls):
+        p = project.Project()
+        v = p.place(p.clip_from_media(media.probe(path("clip.mp4"))))
+        v["duration"] = 1.5
+        au = p.place(p.clip_from_media(media.probe(path("tone.mp3"))))
+        au.update(duration=1.5, afade_in=0.3, afade_out=0.3, eq_low=3.0, eq_high=-2.0, pan=0.4, compress=True,
+                  denoise=0.3, reverb=0.2)
+        cls.p = p
+
+    def _render(self, fmt, name, **extra):
+        from easycut import exportfmt
+        s = exportfmt.settings_for(fmt=fmt, resolution="480p", fps=15, encoder="cpu", **extra)
+        out = tmp(name + exportfmt.FORMATS[fmt]["ext"])
+        r = render.Renderer(self.p, render.RenderOptions(settings=s, out_path=out))
+        r.run()
+        return r, out
+
+    def test_every_format(self):
+        from easycut import exportfmt
+        for fmt, info in exportfmt.FORMATS.items():
+            if fmt in ("webm_av1",):
+                continue                     # slow; covered by the encoder availability check below
+            with self.subTest(fmt=fmt):
+                r, out = self._render(fmt, "fmt_" + fmt)
+                if info["kind"] == "image":
+                    folder = os.path.splitext(out)[0]
+                    self.assertTrue(any(f.endswith(".png") for f in os.listdir(folder)))
+                    continue
+                self.assertGreater(os.path.getsize(out), 1000)
+                if fmt == "webp_anim":
+                    continue                 # FFmpeg can't read animated WebP back, only write it
+                i = media.probe(out)
+                self.assertAlmostEqual(i.duration, 1.5, delta=0.25)
+                if info["kind"] == "audio":
+                    self.assertTrue(i.has_audio)
+                    self.assertFalse(i.has_video)
+                elif info.get("acodec"):
+                    self.assertTrue(i.has_audio and i.has_video)
+
+    def test_target_size_two_pass(self):
+        r, out = self._render("mp4_h264", "target", rate_mode="size", target_mb=0.25)
+        self.assertLess(os.path.getsize(out), 0.25 * 1024 * 1024 * 1.15)
+
+    def test_range_export(self):
+        r, out = self._render("mp4_h264", "range", range="custom", range_start=0.5, range_end=1.25)
+        self.assertAlmostEqual(media.probe(out).duration, 0.75, delta=0.15)
+
+    def test_loudness(self):
+        r, out = self._render("wav", "loud", loudness="streaming")
+        self.assertTrue(media.probe(out).has_audio)
+
+    def test_audio_fx_chain(self):
+        c = self.p.clips_on(self.p.tracks_of("audio")[0])[0]
+        self.assertTrue(effects.has_audio_fx(c))
+        chain = effects.audio_fx_chain(c, 1.5)
+        joined = ",".join(chain) if isinstance(chain, list) else chain
+        for part in ("afftdn", "acompressor", "aecho", "afade"):
+            self.assertIn(part, joined)
+
+    def test_presets_and_estimate(self):
+        from easycut import exportfmt
+        for pr in exportfmt.PRESETS:
+            pid = pr[0]
+            s = exportfmt.preset_settings(pid, 30, "movie")
+            self.assertIn(s["fmt"], exportfmt.FORMATS)
+            self.assertGreater(exportfmt.estimate_bytes(s, 10.0), 0)
+
+
+class TestCapture(unittest.TestCase):
+    def test_parse_dshow_devices(self):
+        from easycut import capture
+        text = '''[dshow @ 0x1] "Integrated Camera" (video)
+[dshow @ 0x1]   Alternative name "@device_pnp_\\?\\usb#vid"
+[dshow @ 0x1] "OBS Virtual Camera" (video)
+[dshow @ 0x1] "Microphone (Realtek(R) Audio)" (audio)
+[dshow @ 0x1]   Alternative name "@device_cm_{33D9A762}"
+[dshow @ 0x1] "Microphone (Realtek(R) Audio)" (audio)'''
+        d = capture.parse_dshow_devices(text)
+        self.assertEqual(d["video"], ["Integrated Camera", "OBS Virtual Camera"])
+        self.assertEqual(d["audio"], ["Microphone (Realtek(R) Audio)"])
+        old = '''[dshow @ 0x2] DirectShow video devices (some may be both video and audio devices)
+[dshow @ 0x2]  "USB Cam"
+[dshow @ 0x2] DirectShow audio devices
+[dshow @ 0x2]  "Mic 1"'''
+        d = capture.parse_dshow_devices(old)
+        self.assertEqual(d, {"video": ["USB Cam"], "audio": ["Mic 1"]})
+
+    def test_commands(self):
+        from easycut import capture
+        mon = {"x": 0, "y": 0, "w": 2560, "h": 1440, "primary": True, "index": 0}
+        cfg = capture.CaptureConfig(monitor=mon, webcam="Cam", mic="Mic", out_dir=TMP, basename="R",
+                                    encoder="cpu", scale="1080p")
+        args, outs, enc = capture.build_command(cfg, "dxgi")
+        joined = " ".join(args)
+        self.assertIn("ddagrab", joined)
+        self.assertIn("hwdownload", joined)
+        self.assertIn("video=Cam", joined)
+        self.assertIn("audio=Mic", joined)
+        self.assertEqual(set(outs), {"screen", "webcam", "mic"})
+        args, outs, enc = capture.build_command(cfg, "gdi")
+        self.assertIn("gdigrab", args)
+        self.assertIn("2560x1440", args)
+
+    def test_pip_corners(self):
+        from easycut import capture
+        x, y, s = capture.pip_transform(1920, 1080, 1280, 720, 0.25, "tl")
+        self.assertLess(x, 0)
+        self.assertLess(y, 0)
+        self.assertAlmostEqual(s, 0.25, places=3)
+        x, y, s = capture.pip_transform(1920, 1080, 1280, 720, 0.25, "br")
+        self.assertGreater(x, 0)
+        self.assertGreater(y, 0)
+        self.assertLess(x + 0.125, 0.5)                 # stays inside the canvas
+
+    def test_system_audio_wall_clock(self):
+        """Loopback delivers nothing in silence; the file must still match real time."""
+        import time as _t
+        from easycut import capture
+
+        class Rec:
+            def __init__(self):
+                self.n = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def record(self, numframes):
+                self.n += 1
+                _t.sleep(0.25 if self.n % 3 == 0 else numframes / 48000)   # gaps, like a silent PC
+                return np.zeros((numframes, 2), np.float32)
+
+        class Backend:
+            def recorder(self, sr, ch):
+                return Rec()
+        out = tmp("loop.wav")
+        r = capture.SystemAudioRecorder(out, Backend())
+        t0 = _t.perf_counter()
+        r.start()
+        _t.sleep(1.5)
+        r.stop()
+        real = _t.perf_counter() - t0
+        self.assertAlmostEqual(r.frames / 48000, real, delta=0.35)
 
 
 class TestSettings(unittest.TestCase):

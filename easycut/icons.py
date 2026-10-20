@@ -12,6 +12,8 @@ APP_FG = "#ff4f7b"
 
 
 def _pen(p, col, w=1.8):
+    if theme.C.get("apple"):
+        w *= 0.84          # finer, symbol-like strokes
     pen = QPen(QColor(col), w)
     pen.setCapStyle(Qt.PenCapStyle.RoundCap)
     pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
@@ -267,6 +269,117 @@ def _draw(p, name, col):
         for i, h in enumerate((4, 9, 14, 7, 11, 5)):
             x = 4.5 + i * 3
             p.drawLine(P(x, 12 - h / 2), P(x, 12 + h / 2))
+    elif name in ("back", "forward"):
+        _pen(p, col, 2)
+        if name == "back":
+            p.drawLine(P(19, 12), P(5, 12))
+            p.drawPolyline(QPolygonF([P(11, 6), P(5, 12), P(11, 18)]))
+        else:
+            p.drawLine(P(5, 12), P(19, 12))
+            p.drawPolyline(QPolygonF([P(13, 6), P(19, 12), P(13, 18)]))
+    elif name == "up":
+        _pen(p, col, 2)
+        p.drawLine(P(12, 19), P(12, 5))
+        p.drawPolyline(QPolygonF([P(6, 11), P(12, 5), P(18, 11)]))
+    elif name == "grid":
+        _pen(p, col)
+        for x, y in ((4, 4), (13, 4), (4, 13), (13, 13)):
+            p.drawRoundedRect(QRectF(x, y, 7, 7), 1.5, 1.5)
+    elif name == "list":
+        _pen(p, col)
+        for y in (6, 12, 18):
+            p.drawLine(P(9, y), P(20, y))
+            p.drawPoint(P(4.5, y))
+    elif name == "star":
+        _pen(p, col, 1.6)
+        pts = []
+        for i in range(10):
+            a = -math.pi / 2 + i * math.pi / 5
+            r = 8.5 if i % 2 == 0 else 3.8
+            pts.append(P(12 + r * math.cos(a), 12.5 + r * math.sin(a)))
+        p.drawPolygon(QPolygonF(pts))
+    elif name == "drive":
+        _pen(p, col)
+        p.drawRoundedRect(QRectF(3.5, 7, 17, 10), 2, 2)
+        p.drawLine(P(3.5, 13), P(20.5, 13))
+        p.setBrush(fill)
+        p.drawEllipse(QPointF(17, 15.2), 0.9, 0.9)
+    elif name == "usb":
+        _pen(p, col)
+        p.drawRoundedRect(QRectF(7, 8, 10, 13), 2, 2)
+        p.drawRect(QRectF(9, 3.5, 6, 4.5))
+    elif name == "desktop":
+        _pen(p, col)
+        p.drawRoundedRect(QRectF(3.5, 4.5, 17, 11.5), 1.5, 1.5)
+        p.drawLine(P(12, 16), P(12, 19.5))
+        p.drawLine(P(8, 19.5), P(16, 19.5))
+    elif name == "doc":
+        _pen(p, col)
+        p.drawPolyline(QPolygonF([P(14, 3.5), P(6, 3.5), P(6, 20.5), P(18, 20.5), P(18, 7.5), P(14, 3.5)]))
+        p.drawPolyline(QPolygonF([P(14, 3.5), P(14, 7.5), P(18, 7.5)]))
+    elif name == "clock":
+        _pen(p, col)
+        p.drawEllipse(QRectF(3.5, 3.5, 17, 17))
+        p.drawPolyline(QPolygonF([P(12, 7), P(12, 12), P(15.5, 14)]))
+    elif name == "record":
+        p.setPen(QPen(QColor(col), 1.8))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(QRectF(3.5, 3.5, 17, 17))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor("#ff3b30"))
+        p.drawEllipse(QRectF(7.5, 7.5, 9, 9))
+    elif name == "stop":
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(fill)
+        p.drawRoundedRect(QRectF(6, 6, 12, 12), 2, 2)
+    elif name == "screen":
+        _pen(p, col)
+        p.drawRoundedRect(QRectF(2.5, 4, 19, 13), 2, 2)
+        p.drawLine(P(9, 20), P(15, 20))
+    elif name == "webcam":
+        _pen(p, col)
+        p.drawEllipse(QRectF(5.5, 3, 13, 13))
+        p.drawEllipse(QRectF(9.5, 7, 5, 5))
+        p.drawLine(P(8, 20.5), P(16, 20.5))
+        p.drawLine(P(12, 16), P(12, 20.5))
+    elif name == "mic":
+        _pen(p, col)
+        p.drawRoundedRect(QRectF(9, 3, 6, 11), 3, 3)
+        path = QPainterPath()
+        path.moveTo(6, 11)
+        path.quadTo(6, 17, 12, 17)
+        path.quadTo(18, 17, 18, 11)
+        p.drawPath(path)
+        p.drawLine(P(12, 17), P(12, 21))
+    elif name == "speaker":
+        _pen(p, col)
+        p.drawRoundedRect(QRectF(5.5, 3, 13, 18), 2, 2)
+        p.drawEllipse(QRectF(9, 11, 6, 6))
+        p.drawPoint(P(12, 7))
+    elif name == "minimise":
+        _pen(p, col, 2)
+        p.drawPolyline(QPolygonF([P(14, 5), P(8, 12), P(14, 19)]))
+    elif name == "lock":
+        _pen(p, col, 2)
+        path = QPainterPath()
+        path.moveTo(8, 11)
+        path.lineTo(8, 8)
+        path.arcTo(QRectF(8, 4, 8, 8), 180, -180)
+        path.lineTo(16, 11)
+        p.drawPath(path)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(fill)
+        p.drawRoundedRect(QRectF(5.5, 10.5, 13, 10), 2, 2)
+    elif name == "download":
+        _pen(p, col)
+        p.drawLine(P(12, 4), P(12, 15))
+        p.drawPolyline(QPolygonF([P(7.5, 10.5), P(12, 15), P(16.5, 10.5)]))
+        p.drawLine(P(5, 20), P(19, 20))
+    elif name == "transition":
+        _pen(p, col)
+        p.drawPolygon(QPolygonF([P(4, 5), P(12, 12), P(4, 19)]))
+        p.setBrush(fill)
+        p.drawPolygon(QPolygonF([P(20, 5), P(12, 12), P(20, 19)]))
     elif name == "close":
         _pen(p, col, 2)
         p.drawLine(P(6, 6), P(18, 18))

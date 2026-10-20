@@ -100,7 +100,7 @@ class Compositor:
             if not os.path.exists(clip["path"]):
                 self.missing.add(clip["path"])
                 return None
-            img = self._reader(clip, box).frame_at(clip.source_time(t))
+            img = self._reader(clip, box).frame_at(max(0.0, clip.source_time(t)))
         else:
             return None
         if img is None:
@@ -118,28 +118,38 @@ class Compositor:
         for clip in project.active_visual(t):
             if skip and clip["id"] in skip:
                 continue
-            try:
-                img = self.clip_frame(clip, t, W, H)
-            except Exception:
+            st = animations.state(clip, t)
+            if t < animations.visible_from(clip):
                 img = None
-            if img is None:
-                continue
-            ch, cw = img.shape[:2]
-            fw, fh = effects.fitted_size(clip, cw, ch, W, H, text_scale=1.0)
-            alpha, s, dx, dy = animations.state(clip, t)
-            fw, fh = fw * s, fh * s
-            if fw < 1 or fh < 1:
-                continue
-            iw, ih = max(1, int(round(fw))), max(1, int(round(fh)))
-            if (iw, ih) != (cw, ch):
-                interp = cv2.INTER_AREA if iw < cw else cv2.INTER_LINEAR
-                img = cv2.resize(img, (iw, ih), interpolation=interp)
-            rot = float(clip.get("rotation", 0.0))
-            if abs(rot) > 0.01:
-                img = effects.rotate_bgra(img, rot)
-            cx = W / 2 + (float(clip.get("x", 0)) + dx) * W
-            cy = H / 2 + (float(clip.get("y", 0)) + dy) * H
-            blend_onto(canvas, img, cx, cy, alpha * float(clip.get("opacity", 1.0)))
+            else:
+                try:
+                    img = self.clip_frame(clip, t, W, H)
+                except Exception:
+                    img = None
+            if img is not None:
+                ch, cw = img.shape[:2]
+                fw, fh = effects.fitted_size(clip, cw, ch, W, H, text_scale=1.0)
+                fw, fh = fw * st["scale"], fh * st["scale"]
+                if fw >= 1 and fh >= 1:
+                    iw, ih = max(1, int(round(fw))), max(1, int(round(fh)))
+                    if (iw, ih) != (cw, ch):
+                        interp = cv2.INTER_AREA if iw < cw else cv2.INTER_LINEAR
+                        img = cv2.resize(img, (iw, ih), interpolation=interp)
+                    mask = animations.reveal_mask(ih, iw, st["reveals"])
+                    if mask is not None:
+                        img = effects.to_bgra(np.ascontiguousarray(img)).copy()
+                        img[:, :, 3] = (img[:, :, 3] * mask).astype(np.uint8)
+                    rot = float(clip.get("rotation", 0.0)) + st["rot"]
+                    if abs(rot) > 0.01:
+                        img = effects.rotate_bgra(img, rot)
+                    cx = W / 2 + (float(clip.get("x", 0)) + st["dx"]) * W
+                    cy = H / 2 + (float(clip.get("y", 0)) + st["dy"]) * H
+                    blend_onto(canvas, img, cx, cy, st["alpha"] * float(clip.get("opacity", 1.0)))
+            if st["veil"] is not None and st["veil"][1] > 0.001:
+                vr, vg, vb = hex_to_rgb(st["veil"][0])
+                a = st["veil"][1]
+                canvas[:] = (canvas.astype(np.float32) * (1 - a) + np.array((vb, vg, vr), np.float32) * a + 0.5
+                             ).astype(np.uint8)
         return canvas
 
     def clip_rect(self, project, clip, t, W, H):
@@ -151,7 +161,7 @@ class Compositor:
             sw, sh = clip.get("src_w") or 16, clip.get("src_h") or 9
             cw, ch = effects.content_size(clip, sw, sh)
         fw, fh = effects.fitted_size(clip, cw, ch, W, H, text_scale=1.0)
-        _, s, dx, dy = animations.state(clip, t)
-        cx = W / 2 + (float(clip.get("x", 0)) + dx) * W
-        cy = H / 2 + (float(clip.get("y", 0)) + dy) * H
-        return cx, cy, fw * s, fh * s
+        st = animations.state(clip, t)
+        cx = W / 2 + (float(clip.get("x", 0)) + st["dx"]) * W
+        cy = H / 2 + (float(clip.get("y", 0)) + st["dy"]) * H
+        return cx, cy, fw * st["scale"], fh * st["scale"]

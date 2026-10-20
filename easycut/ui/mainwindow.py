@@ -12,13 +12,14 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLa
                              QLineEdit, QPlainTextEdit, QAbstractSpinBox, QDialog)
 
 from .. import __version__, APP_NAME, formats, media, project as proj, settings, theme, icons, extensions, updater
-from .. import render
+from .. import animations, render, catalog, textrender
 from ..compositor import Compositor
 from ..config import data_path, cache_dir, PROJECT_EXT, RELEASES_URL, GITHUB_URL, TKO_URL, TOPTRACKING_URL
 from .inspector import Inspector
 from .panels import Library
 from .preview import PreviewPanel
 from .render_dialog import RenderDialog
+from .pack_dialog import PackDialog
 from .theme_dialog import ThemeDialog
 from .timeline import Timeline, TimelineScroll
 from .widgets import icon_button, fmt_time
@@ -83,6 +84,7 @@ class MainWindow(QMainWindow):
         if settings.get("check_updates", True):
             QTimer.singleShot(1500, self.check_updates)
         self._mark_session(open_=True)
+        self.apply_chrome()
 
     # ================================================================== UI
     def _build_ui(self):
@@ -104,7 +106,7 @@ class MainWindow(QMainWindow):
         self.hsplit = QSplitter(Qt.Orientation.Horizontal)
         self.hsplit.setChildrenCollapsible(False)
         self.library = Library()
-        self.library.setMinimumWidth(390)
+        self.library.setMinimumWidth(self.library.rail_width() + 310)
         self.preview = PreviewPanel()
         self.inspector = Inspector()
         self.hsplit.addWidget(self.library)
@@ -122,18 +124,25 @@ class MainWindow(QMainWindow):
         self._wire()
 
     def _top_bar(self):
-        bar = QFrame()
+        from .chrome import DragBar, WindowDots
+        bar = DragBar()
         bar.setObjectName("TopBar")
         bar.setFixedHeight(52)
+        self.top_bar = bar
         h = QHBoxLayout(bar)
         h.setContentsMargins(12, 6, 12, 6)
         h.setSpacing(6)
+        self.dots = WindowDots()
+        self.dots.hide()
+        h.addWidget(self.dots)
         logo = QLabel()
+        self.logo = logo
         logo.setPixmap(icons.app_pixmap(64).scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio,
                                                     Qt.TransformationMode.SmoothTransformation))
         h.addWidget(logo)
         brand = QLabel("Easy-Cut")
         brand.setObjectName("Brand")
+        self.brand = brand
         h.addWidget(brand)
         h.addSpacing(10)
         self.menu_btn = QPushButton("File")
@@ -156,9 +165,20 @@ class MainWindow(QMainWindow):
         h.addWidget(self.undo_btn)
         h.addWidget(self.redo_btn)
         h.addStretch(1)
+        title = QWidget()
+        tv = QVBoxLayout(title)
+        tv.setContentsMargins(0, 0, 0, 0)
+        tv.setSpacing(0)
         self.name_label = QLabel("Untitled")
         self.name_label.setObjectName("H2")
-        h.addWidget(self.name_label)
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.name_sub = QLabel("")
+        self.name_sub.setObjectName("Dim")
+        self.name_sub.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.name_sub.hide()
+        tv.addWidget(self.name_label)
+        tv.addWidget(self.name_sub)
+        h.addWidget(title)
         h.addStretch(1)
         h.addWidget(QLabel("Canvas"))
         self.aspect_combo = QComboBox()
@@ -167,6 +187,11 @@ class MainWindow(QMainWindow):
         self.aspect_combo.setMinimumWidth(230)
         self.aspect_combo.currentIndexChanged.connect(self._aspect_from_combo)
         h.addWidget(self.aspect_combo)
+        self.record_btn = QPushButton("  Record")
+        icons.bind(self.record_btn, "record", 16, "#ff453a")
+        self.record_btn.setToolTip("Record your screen, gameplay, webcam and audio (Ctrl+R)")
+        self.record_btn.clicked.connect(self.show_recorder)
+        h.addWidget(self.record_btn)
         self.theme_btn = icon_button("theme", "Appearance & themes", 20)
         self.theme_btn.clicked.connect(self.show_themes)
         h.addWidget(self.theme_btn)
@@ -206,6 +231,7 @@ class MainWindow(QMainWindow):
         m.addAction("Save as…", QKeySequence("Ctrl+Shift+S"), self.save_as)
         m.addSeparator()
         m.addAction("Import media…", QKeySequence("Ctrl+I"), self.import_dialog)
+        m.addAction("Record screen, webcam && audio…", QKeySequence("Ctrl+R"), self.show_recorder)
         m.addAction("Export video…", QKeySequence("Ctrl+E"), self.export)
         m.addSeparator()
         m.addAction("Exit", self.close)
@@ -222,6 +248,11 @@ class MainWindow(QMainWindow):
             a.setChecked(settings.get("preview_quality") == key)
             a.setData(key)
         self.pq_menu = pq
+        m.addSeparator()
+        a = m.addAction("🍏 Mode: use the built-in title bar")
+        a.setCheckable(True)
+        a.setChecked(settings.get("mac_titlebar", True))
+        a.toggled.connect(lambda v: (settings.set("mac_titlebar", v), self.apply_chrome()))
         m.addSeparator()
         m.addAction("Zoom timeline to fit", lambda: self.timeline.zoom_to_fit())
         m.addAction("Extensions", self.show_extensions)
@@ -309,9 +340,15 @@ class MainWindow(QMainWindow):
         ins.committed.connect(self.commit)
         ins.speedChanged.connect(self._speed_changed)
         ins.pickColor.connect(self._start_pick)
+        ins.normalizeRequested.connect(self.normalize_selected)
         ins.rebuild_extension_effects()
         lib = self.library
         lib.media.importRequested.connect(self.import_dialog)
+        lib.explorer.addToTimeline.connect(lambda paths: self.import_paths(paths, add_to_timeline=True))
+        lib.explorer.addToMedia.connect(self._explorer_add_media)
+        lib.explorer.fullViewToggled.connect(self.set_explorer_full)
+        lib.explorer.minimiseRequested.connect(lambda: lib.set_collapsed(True))
+        lib.collapsedChanged.connect(self._library_collapsed)
         lib.media.addRequested.connect(lambda paths: self.add_to_timeline(paths))
         lib.media.removeRequested.connect(self._remove_media)
         lib.text.addText.connect(self.add_text)
@@ -323,12 +360,19 @@ class MainWindow(QMainWindow):
         lib.anims.durationChanged.connect(lambda w, v: self.apply_fields({f"anim_{w}_dur": v}, visual_only=True))
         lib.anims.durationDone.connect(lambda: self.commit("Animation length"))
         lib.effects.effectChosen.connect(self._effect_chosen)
+        lib.transitions.transitionChosen.connect(self._transition_chosen)
+        lib.transitions.durationChanged.connect(self._transition_duration)
+        lib.transitions.durationDone.connect(lambda: self.commit("Transition length"))
+        lib.text.styleChosen.connect(self._style_chosen)
+        lib.text.fontChosen.connect(self._font_chosen)
+        for sig in lib.locked_signals():
+            sig.connect(self.request_item)
         ext = lib.extensions
-        ext.installRequested.connect(self.install_extension)
+        ext.getRequested.connect(lambda pid: self.get_packs([pid]))
+        ext.getAllRequested.connect(self.get_packs)
         ext.installFile.connect(self.install_extension_file)
         ext.removeRequested.connect(self.remove_extension)
-        ext.refreshRequested.connect(lambda: self.check_updates(manual=False, quiet_ok=True))
-        ext.populate([])
+        ext.refreshRequested.connect(lambda: self.check_updates(manual=True))
         pv = self.preview
         pv.btn_play.clicked.connect(self.toggle_play)
         pv.btn_start.clicked.connect(lambda: self.seek(0))
@@ -345,6 +389,7 @@ class MainWindow(QMainWindow):
         for seq, fn in (("Ctrl+Z", self.undo), ("Ctrl+Y", self.redo), ("Ctrl+Shift+Z", self.redo),
                         ("Ctrl+N", self.new_project), ("Ctrl+O", self.open_dialog), ("Ctrl+S", self.save),
                         ("Ctrl+Shift+S", self.save_as), ("Ctrl+I", self.import_dialog), ("Ctrl+E", self.export),
+                        ("Ctrl+R", self.show_recorder),
                         ("Ctrl+D", self.duplicate), ("Ctrl+B", self.split), ("Ctrl+A", self.select_all),
                         ("Ctrl+=", lambda: self.timeline.set_zoom(self.timeline.pps * 1.4)),
                         ("Ctrl+-", lambda: self.timeline.set_zoom(self.timeline.pps / 1.4))):
@@ -408,7 +453,11 @@ class MainWindow(QMainWindow):
 
     def refresh(self, preview=True):
         self.timeline.update()
-        self.name_label.setText(("● " if self.dirty else "") + (self.project.name or "Untitled"))
+        if theme.C.get("apple"):
+            self.name_label.setText(self.project.name or "Untitled")
+            self.name_sub.setText("Edited" if self.dirty else ("Saved" if self.project.path else "Not saved"))
+        else:
+            self.name_label.setText(("● " if self.dirty else "") + (self.project.name or "Untitled"))
         self.setWindowTitle(f"{self.project.name or 'Untitled'}{' *' if self.dirty else ''} - {APP_NAME}")
         self.undo_btn.setEnabled(self.history.can_undo())
         self.redo_btn.setEnabled(self.history.can_redo())
@@ -465,8 +514,11 @@ class MainWindow(QMainWindow):
         clips = self.selected_clips()
         self.inspector.load(clips)
         first = clips[0] if clips else None
-        self.library.filters.sync(first if first and first.is_visual else None)
-        self.library.anims.sync(first if first and first.is_visual else None)
+        vis = first if first and first.is_visual else None
+        self.library.filters.sync(vis)
+        self.library.anims.sync(vis)
+        self.library.transitions.sync(vis)
+        self.library.text.sync(first)
         self.schedule_preview()
 
     def apply_fields(self, fields: dict, visual_only=False):
@@ -531,13 +583,125 @@ class MainWindow(QMainWindow):
             self.toast("Select a clip on the timeline first, then choose an animation.")
             self.library.anims.sync(None)
             return
+        if which == "in" and aid != "none" and any(c.get("trans_in", "none") != "none"
+                                                    for c in self.selected_clips()):
+            self.apply_fields({"trans_in": "none"}, visual_only=True)
+            self.toast("The clip's transition was removed - a clip can have a transition or an in-animation.")
         self.apply_fields({f"anim_{which}": aid}, visual_only=True)
         self.commit("Animation")
+        self.library.transitions.sync(self._selected_visual())
         c = self._selected_visual()
         if c:
             self.seek(c["start"] if which == "in" else max(c["start"], c.end - c[f"anim_{which}_dur"] - 0.05))
             self.play_range(c["start"], min(c.end, c["start"] + c["anim_in_dur"] + 0.4)) if which == "in" else \
                 self.play_range(max(c["start"], c.end - c["anim_out_dur"] - 0.4), c.end)
+
+    def _transition_chosen(self, tid):
+        clips = [c for c in self.selected_clips() if c.is_visual]
+        if not clips:
+            self.toast("Select the clip the transition should lead into, then choose a transition.")
+            self.library.transitions.sync(None)
+            return
+        c = clips[0]
+        if tid != "none" and c["start"] < 0.05:
+            self.toast("This clip is at the very start - transitions play over the clip before it, so move it "
+                       "later or pick a clip further along.")
+        if tid != "none" and c.get("anim_in", "none") != "none":
+            self.apply_fields({"anim_in": "none"}, visual_only=True)
+            self.toast("The clip's in-animation was replaced by the transition.")
+        self.apply_fields({"trans_in": tid}, visual_only=True)
+        self.commit("Transition")
+        self.library.anims.sync(c)
+        if tid != "none":
+            pre = animations.pre_roll(c)
+            self.play_range(max(0.0, c["start"] - pre - 0.3), min(c.end, c["start"] + 0.4))
+
+    def _transition_duration(self, v):
+        self.apply_fields({"trans_dur": v}, visual_only=True)
+        self.timeline.update()
+
+    def _text_clips(self):
+        return [c for c in self.selected_clips() if c["kind"] == "text"]
+
+    def _style_chosen(self, sid):
+        if not self._text_clips():
+            self.add_text({"text_style": sid, "text": textrender.get_style(sid).name, "font_size": 110})
+            return
+        for c in self._text_clips():
+            c["text_style"] = sid
+        self.commit("Text style")
+        self.inspector.load(self.selected_clips())
+        self.schedule_preview()
+
+    def _font_chosen(self, fid):
+        f = textrender.FONTS.get(fid)
+        if f is None:
+            return
+        if not self._text_clips():
+            self.add_text({"font": f["family"], "text": f["name"], "font_size": 110, "bold": False})
+            return
+        for c in self._text_clips():
+            c["font"] = f["family"]
+        self.commit("Font")
+        self.inspector.load(self.selected_clips())
+        self.schedule_preview()
+
+    # ------------------------------------------------------------------ packs
+    def request_item(self, kind, item_id):
+        """A locked item was clicked: offer its pack, then use the item straight away."""
+        which = None
+        if ":" in kind:
+            kind, which = kind.split(":", 1)
+        pack = catalog.pack_for(kind, item_id)
+        if pack is None:
+            return
+        name = next((it.get("name") for it in pack.get("items", []) if it["id"] == item_id), item_id)
+        dlg = PackDialog([pack["id"]], item_name=name, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._packs_installed(dlg.installed_ids, dlg.restart_ids)
+        if pack["id"] in dlg.restart_ids:
+            return
+        self.use_item(kind, item_id, which)
+
+    def use_item(self, kind, item_id, which=None):
+        if kind == "filter":
+            if self._selected_visual():
+                self._filter_chosen(item_id)
+        elif kind == "transition":
+            if self._selected_visual():
+                self._transition_chosen(item_id)
+        elif kind == "animation":
+            if self._selected_visual():
+                self._anim_chosen(which or "in", item_id)
+        elif kind == "effect":
+            if self.selected_clips():
+                self._effect_chosen("fx:" + item_id)
+        elif kind == "text_style":
+            self._style_chosen(item_id)
+        elif kind == "font":
+            self._font_chosen(item_id)
+
+    def get_packs(self, pack_ids):
+        pack_ids = [p for p in pack_ids if p]
+        if not pack_ids:
+            return
+        dlg = PackDialog(pack_ids, parent=self, autostart=True)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._packs_installed(dlg.installed_ids, dlg.restart_ids)
+
+    def _packs_installed(self, done, restart):
+        self._restart_packs = set(getattr(self, "_restart_packs", set())) | set(restart)
+        updates = [e for e in (self.manifest_updates or {}).get("extensions", []) if e["id"] not in done]
+        if self.manifest_updates:
+            self.manifest_updates["extensions"] = updates
+        self._rebuild_libraries()
+        self.library.extensions.populate(updates, self._restart_packs)
+        names = [(catalog.pack(p) or {}).get("name", p) for p in done]
+        if restart:
+            self.toast("Updated packs finish installing the next time you open Easy-Cut.", 8000)
+        elif names:
+            self.toast(f"{', '.join(names)} installed - enjoy!", 6000)
 
     def _effect_chosen(self, key):
         clips = self.selected_clips()
@@ -571,6 +735,25 @@ class MainWindow(QMainWindow):
             self.commit("Effect")
         self.inspector.load(self.selected_clips())
         self.inspector.show_tab("Effects")
+
+    def normalize_selected(self):
+        """Set each selected clip's volume so its loudest peak sits at -1 dB."""
+        clips = [c for c in self.selected_clips() if c.has_sound]
+        if not clips:
+            return
+        self.toast("Measuring loudness…")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            for c in clips:
+                peak = media.peak_db(c["path"], c["in_point"], c.source_span())
+                if peak is None:
+                    continue
+                c["volume"] = max(0.0, min(2.0, 10 ** ((-1.0 - peak) / 20)))
+        finally:
+            QApplication.restoreOverrideCursor()
+        self.commit("Normalize")
+        self.inspector.load(self.selected_clips())
+        self.toast("Normalized - the loudest moment now peaks at -1 dB.")
 
     def _start_pick(self):
         if self._selected_visual() is None:
@@ -655,7 +838,7 @@ class MainWindow(QMainWindow):
         elif action == "reset_effects":
             keep = ("id", "kind", "path", "name", "track", "start", "duration", "in_point", "source_duration",
                     "has_audio", "has_video", "src_w", "src_h", "sample_rate", "text", "font", "font_size",
-                    "text_color", "bold", "text_bg", "text_bg_color", "text_outline", "speed")
+                    "text_color", "bold", "text_bg", "text_bg_color", "text_outline", "text_style", "speed")
             for c in clips:
                 fresh = proj.DEFAULT_CLIP
                 for k, v in fresh.items():
@@ -687,8 +870,60 @@ class MainWindow(QMainWindow):
             if ti >= 0:
                 self.project.ripple_close(ti)
                 self.commit("Close gaps")
+        elif action == "detach_audio":
+            made = [self.project.detach_audio(c) for c in clips]
+            made = [m for m in made if m]
+            if made:
+                self.timeline.selected = [made[0]["id"]]
+                self._selection_changed(self.timeline.selected)
+                self.commit("Detach audio")
+                self.toast("Audio moved to its own track - edit it separately from the picture.")
+        elif action == "edit_transition":
+            self.library.show("transitions")
+        elif action == "remove_transition":
+            self.apply_fields({"trans_in": "none"}, visual_only=True)
+            self.commit("Remove transition")
+            self._selection_changed(self.timeline.selected)
         elif action == "focus_inspector":
             self.inspector.setFocus()
+
+    # ------------------------------------------------------------------ library panel size / explorer full view
+    def _library_collapsed(self, on):
+        if on:
+            if getattr(self, "_explorer_full", False):
+                self.library.explorer.set_full(False)
+            self._lib_sizes = self.hsplit.sizes()
+            rw = self.library.rail_width()
+            self.library.setMinimumWidth(rw)
+            self.library.setMaximumWidth(rw)
+            sizes = self.hsplit.sizes()
+            spare = sizes[0] - rw
+            self.hsplit.setSizes([rw, sizes[1] + spare, sizes[2]])
+        else:
+            self.library.setMaximumWidth(16777215)
+            self.library.setMinimumWidth(self.library.rail_width() + 310)
+            if getattr(self, "_lib_sizes", None):
+                self.hsplit.setSizes(self._lib_sizes)
+
+    def set_explorer_full(self, on):
+        """Give the Explorer the whole workspace above the timeline (the timeline stays, for dragging)."""
+        if on == getattr(self, "_explorer_full", False):
+            return
+        self._explorer_full = on
+        if on:
+            self._full_sizes = self.hsplit.sizes()
+            self.library.show("explorer")
+            self.preview.hide()
+            self.inspector.hide()
+        else:
+            self.preview.show()
+            self.inspector.show()
+            if getattr(self, "_full_sizes", None):
+                self.hsplit.setSizes(self._full_sizes)
+
+    def _explorer_add_media(self, paths):
+        self.import_paths(paths)
+        self.toast(f"Added {len(paths)} file{'s' if len(paths) != 1 else ''} to Media.")
 
     def _snap_toggled(self, v):
         self.timeline.snap = v
@@ -763,6 +998,97 @@ class MainWindow(QMainWindow):
             self.commit("Add media")
             if was_empty:
                 QTimer.singleShot(0, self.timeline.zoom_to_fit)
+
+    # ================================================================== recording
+    def show_recorder(self):
+        from .recorder import RecorderDialog
+        if getattr(self, "_recorder", None) is not None and self._recorder.isVisible():
+            self._recorder.raise_()
+            self._recorder.activateWindow()
+            return
+        self._recorder = RecorderDialog(self)
+        self._recorder.recorded.connect(self.import_recording)
+        self._recorder.finished.connect(lambda _r: setattr(self, "_recorder", None))
+        self._recorder.show()
+
+    def import_recording(self, res, opts=None):
+        """Put a finished recording on the timeline: screen on a video track, webcam as picture-in-picture
+        above it, microphone and system audio on their own audio tracks - all lined up."""
+        from .. import capture
+        opts = opts or {}
+        paths = [res.files[k] for k in ("screen", "webcam", "mic", "system") if k in res.files]
+        for p in paths:
+            if p not in self.project.media:
+                self.project.media.append(p)
+                self.library.media.add(p)
+        if not opts.get("timeline", True):
+            self.dirty = True
+            self.refresh(preview=False)
+            self.toast("Recording saved to your media.")
+            return []
+        pr = self.project
+        was_empty = not pr.clips
+        at = 0.0 if was_empty else pr.duration()
+        added = []
+        names = {"screen": "Screen recording", "webcam": "Webcam", "mic": "Microphone", "system": "System audio"}
+        infos = {k: media.probe(p) for k, p in res.files.items()}
+        main = infos.get("screen") or infos.get("webcam")
+        if was_empty and main is not None and main.width and main.height:
+            self._auto_aspect(main.width, main.height)
+
+        def free_track(kind, start, dur, above=None):
+            for t in (reversed(pr.tracks_of(kind)) if kind == "audio" or above is None else
+                      sorted([t for t in pr.tracks_of(kind) if t < above], reverse=True)):
+                if pr.track_free(t, start, start + dur):
+                    return t
+            return pr.add_track(kind)
+
+        screen_clip = None
+        if "screen" in infos:
+            c = pr.clip_from_media(infos["screen"])
+            c["name"] = names["screen"]
+            t = free_track("video", at, c["duration"])
+            pr.place(c, preferred_track=t, at=at)
+            screen_clip = c
+            added.append(c)
+        if "webcam" in infos:
+            info = infos["webcam"]
+            c = pr.clip_from_media(info)
+            c["name"] = names["webcam"]
+            if screen_clip is not None:
+                t = free_track("video", at, c["duration"], above=screen_clip["track"])
+                W, H = formats.canvas_size(pr.aspect)
+                x, y, sc = capture.pip_transform(W, H, info.width or 640, info.height or 360,
+                                                 opts.get("cam_size", 0.28), opts.get("corner", "br"))
+                c.update({"x": round(x, 4), "y": round(y, 4), "scale": round(sc, 4)})
+            else:
+                t = free_track("video", at, c["duration"])
+            pr.place(c, preferred_track=t, at=at + res.offsets.get("webcam", 0.0))
+            added.append(c)
+        for kind in ("mic", "system"):
+            if kind not in infos:
+                continue
+            c = pr.clip_from_media(infos[kind])
+            c["name"] = names[kind]
+            off = res.offsets.get(kind, 0.0)
+            start = at + max(0.0, off)
+            if off < 0:                       # started before the screen: trim the lead-in
+                c["in_point"] = c["in_point"] + (-off)
+                c["duration"] = max(0.1, c["duration"] + off)
+            t = free_track("audio", start, c["duration"])
+            pr.place(c, preferred_track=t, at=start)
+            added.append(c)
+        if not added:
+            return []
+        self.timeline.selected = [c["id"] for c in added]
+        self._selection_changed(self.timeline.selected)
+        self.commit("Add recording")
+        self.seek(at)
+        QTimer.singleShot(0, self.timeline.zoom_to_fit)
+        bits = [names[k].lower() if k != "screen" else "screen" for k in ("screen", "webcam", "mic", "system")
+                if k in infos]
+        self.toast("Recording added - " + ", ".join(bits) + " on their own tracks.")
+        return added
 
     def _auto_aspect(self, w, h):
         r = w / h
@@ -910,6 +1236,7 @@ class MainWindow(QMainWindow):
         self.preview.set_playing(False)
         if self.player is not None:
             self.player.pause()
+        self.preview.meter.set_levels(None)
         self.render_preview()
 
     def _tick(self):
@@ -930,6 +1257,7 @@ class MainWindow(QMainWindow):
         self.render_preview()
         self.timeline.update()
         self._sync_audio()
+        self._update_meters()
 
     # ------------------------------------------------------------------ audio preview
     def _init_audio(self):
@@ -950,7 +1278,10 @@ class MainWindow(QMainWindow):
                 tr = self.project.tracks[c["track"]] if c["track"] < len(self.project.tracks) else {}
                 parts.append((c["path"], round(c["start"], 3), round(c["duration"], 3), round(c["in_point"], 3),
                               c["speed"], c["keep_pitch"], c["pitch"], c["volume"], c["muted"], tr.get("muted"),
-                              tr.get("hidden"), c["anim_in"], c["anim_out"], c["anim_in_dur"], c["anim_out_dur"]))
+                              tr.get("hidden"), tr.get("solo"), c["track"], c["anim_in"], c["anim_out"],
+                              c["anim_in_dur"], c["anim_out_dur"], c.get("pan"), c.get("afade_in"),
+                              c.get("afade_out"), c.get("eq_low"), c.get("eq_mid"), c.get("eq_high"),
+                              c.get("compress"), c.get("denoise"), c.get("reverb")))
         return json.dumps(parts)
 
     def _maybe_build_audio(self):
@@ -984,6 +1315,7 @@ class MainWindow(QMainWindow):
         if path:
             self.audio_path = path
             self.audio_sig = sig
+            self.audio_pcm = self._load_pcm(path)
             self.player.setSource(QUrl.fromLocalFile(path))
             if self.playing:
                 self._sync_audio(force=True)
@@ -991,6 +1323,40 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(3000, lambda: self._rm(old))
         if self._audio_signature() != self.audio_sig:
             self.audio_timer.start()
+
+    @staticmethod
+    def _load_pcm(path):
+        """The preview mix as an int16 (frames, 2) array, for the level meters."""
+        import wave
+        import numpy as np
+        try:
+            with wave.open(path, "rb") as w:
+                data = np.frombuffer(w.readframes(w.getnframes()), np.int16)
+                ch = w.getnchannels()
+                rate = w.getframerate()
+            return data.reshape(-1, ch), rate
+        except Exception:
+            return None
+
+    def _update_meters(self):
+        pcm = getattr(self, "audio_pcm", None)
+        if not self.playing or pcm is None:
+            self.preview.meter.set_levels(None)
+            return
+        import numpy as np
+        data, rate = pcm
+        i1 = int(self.playhead * rate)
+        i0 = max(0, i1 - int(0.05 * rate))
+        block = data[i0:i1]
+        if len(block) == 0:
+            self.preview.meter.set_levels(None)
+            return
+        peak = np.abs(block.astype(np.int32)).max(axis=0) / 32768.0
+        rms = np.sqrt((block.astype(np.float64) ** 2).mean(axis=0)) / 32768.0
+        if peak.shape[0] == 1:
+            peak = np.repeat(peak, 2)
+            rms = np.repeat(rms, 2)
+        self.preview.meter.set_levels((float(peak[0]), float(peak[1])), (float(rms[0]), float(rms[1])))
 
     @staticmethod
     def _rm(p):
@@ -1172,20 +1538,57 @@ class MainWindow(QMainWindow):
             self.toast("Add some media to the timeline first.")
             return
         self.stop()
-        dlg = RenderDialog(self.project, self)
-        dlg.aspectChanged.connect(self.set_aspect)
+        sel = self.selected_clips()
+        selection = (min(c.vis_start for c in sel), max(c.end for c in sel)) if sel else None
+        dlg = RenderDialog(self.project, self, selection=selection)
         dlg.exec()
 
     def show_themes(self):
         ThemeDialog(self.app, self).exec()
 
+    def apply_chrome(self):
+        """🍏 Mode: frameless window + our own title bar. Other themes: the normal Windows title bar."""
+        from .chrome import EdgeResizer, win_round_corners
+        apple = bool(theme.C.get("apple"))
+        frameless = apple and settings.get("mac_titlebar", True)
+        if not hasattr(self, "resizer"):
+            self.resizer = EdgeResizer(self)
+            self.app.installEventFilter(self.resizer)
+        self.resizer.active = frameless
+        self.dots.setVisible(frameless)
+        self.logo.setVisible(not apple)
+        self.brand.setVisible(not apple)
+        self.name_sub.setVisible(apple)
+        self.top_bar.setFixedHeight(54 if apple else 52)
+        was = bool(self.windowFlags() & Qt.WindowType.FramelessWindowHint)
+        if was != frameless:
+            visible = self.isVisible()
+            geo = self.geometry()
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, frameless)
+            if visible:
+                self.setGeometry(geo)
+                self.show()
+        if frameless:
+            win_round_corners(self)
+        self.refresh(preview=False)
+
     def _theme_changed(self):
+        self.apply_chrome()
+        if not self.library.collapsed:
+            want = self.library.rail_width() + 310
+            self.library.setMinimumWidth(want)
+            sizes = self.hsplit.sizes()
+            if sizes and sizes[0] < want + 60:
+                grow = want + 60 - sizes[0]
+                self.hsplit.setSizes([sizes[0] + grow, max(300, sizes[1] - grow), sizes[2]])
         self.timeline.update()
         self.preview.canvas.update()
         self.library.filters.rebuild()
         self.library.filters.sync(self._selected_visual())
 
-    def show_extensions(self):
+    def show_extensions(self, category=None):
+        if category:
+            self.library.extensions.set_category(category)
         self.library.show("extensions")
 
     def show_shortcuts(self):
@@ -1245,7 +1648,9 @@ class MainWindow(QMainWindow):
         def work():
             try:
                 m = updater.fetch_manifest()
-                self.bridge.updatesChecked.emit(updater.check(m), "")
+                res = updater.check(m)
+                res["manifest_extensions"] = m.get("extensions", [])
+                self.bridge.updatesChecked.emit(res, "")
             except Exception as e:  # noqa: BLE001
                 self.bridge.updatesChecked.emit(None, str(e))
 
@@ -1254,13 +1659,16 @@ class MainWindow(QMainWindow):
     def _updates_checked(self, result, err):
         manual = getattr(self, "_manual_check", False)
         if result is None:
-            self.library.extensions.populate([])
             if manual:
                 QMessageBox.information(self, "Updates", "Couldn't reach the update server right now.\n"
                                         "Check your internet connection and try again.")
             return
         self.manifest_updates = result
-        self.library.extensions.populate(result["available"], result["extensions"])
+        known = {p["id"] for p in catalog.packs()}
+        catalog.merge_manifest(result.get("manifest_extensions", []))
+        if {p["id"] for p in catalog.packs()} != known:
+            self._rebuild_libraries()          # new packs were released since this version shipped
+        self.library.extensions.populate(result["extensions"], getattr(self, "_restart_packs", set()))
         if result["extensions"] and settings.get("auto_update_extensions", False):
             for e in result["extensions"]:
                 self.install_extension(e, quiet=True)
@@ -1272,7 +1680,7 @@ class MainWindow(QMainWindow):
             self.banner.show()
         elif result["extensions"] and not settings.get("auto_update_extensions", False):
             n = len(result["extensions"])
-            self.banner_label.setText(f"{n} extension update{'s are' if n > 1 else ' is'} available.")
+            self.banner_label.setText(f"{n} pack update{'s are' if n > 1 else ' is'} available.")
             self.banner_btn.setText("Update")
             self._banner_mode = "ext"
             self.banner.show()
@@ -1349,24 +1757,24 @@ class MainWindow(QMainWindow):
             self.toast(f"{ext.name} will be updated the next time you open Easy-Cut.", 8000)
         else:
             self.toast(f"{ext.name} is installed and ready.")
-        self._rebuild_libraries()
-        res = self.manifest_updates or {}
-        self.library.extensions.populate(res.get("available", []),
-                                         [e for e in res.get("extensions", []) if ext is None or e["id"] != ext.id])
+        if ext is not None:
+            self._packs_installed([ext.id], [ext.id] if restart else [])
 
     def remove_extension(self, ext_id):
-        if QMessageBox.question(self, "Extensions", "Remove this extension?") != QMessageBox.StandardButton.Yes:
+        name = (catalog.pack(ext_id) or {}).get("name", ext_id)
+        if QMessageBox.question(self, "Extensions", f"Remove {name}? You can download it again any time.") \
+                != QMessageBox.StandardButton.Yes:
             return
         restart = extensions.uninstall(ext_id)
-        self.toast("It will be fully removed the next time you open Easy-Cut." if restart else "Extension removed.")
-        res = self.manifest_updates or {}
-        self.library.extensions.populate(res.get("available", []), res.get("extensions", []))
+        if restart:
+            self._restart_packs = set(getattr(self, "_restart_packs", set())) | {ext_id}
+        self.toast(f"{name} will be removed the next time you open Easy-Cut." if restart else f"{name} removed.")
+        self.library.extensions.populate(None, getattr(self, "_restart_packs", set()))
 
     def _rebuild_libraries(self):
-        self.library.filters.rebuild()
-        self.library.anims.rebuild()
-        self.library.effects.rebuild()
+        self.library.rebuild()
         self.inspector.rebuild_extension_effects()
+        self.inspector.rebuild_styles()
         self._selection_changed(self.timeline.selected)
 
     # ================================================================== close

@@ -4,7 +4,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget, QScrollArea, QPushButton,
                              QComboBox, QPlainTextEdit, QFontComboBox, QStackedWidget, QFrame)
 
-from .. import effects, filters
+from .. import effects, filters, textrender
 from .widgets import SliderRow, ColorButton, section, Toggle, icon_button
 
 
@@ -22,6 +22,7 @@ class Inspector(QWidget):
     committed = pyqtSignal(str)         # an edit finished (add to undo history)
     speedChanged = pyqtSignal(float)
     pickColor = pyqtSignal()
+    normalizeRequested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -201,23 +202,55 @@ class Inspector(QWidget):
             if it.widget():
                 it.widget().deleteLater()
         self.ext_checks = {}
+        self.ext_amounts = {}
         if not filters.EFFECTS:
+            hint = QLabel("Add effects like VHS, Glow or Pixelate from the Effects tab on the left.")
+            hint.setObjectName("Dim")
+            hint.setWordWrap(True)
+            self.ext_lay.addWidget(section("Pack effects"))
+            self.ext_lay.addWidget(hint)
             return
-        self.ext_lay.addWidget(section("Extension effects"))
+        self.ext_lay.addWidget(section("Pack effects"))
         for eid in filters.EFFECT_ORDER:
             e = filters.EFFECTS[eid]
             cb = Toggle(e.name)
             cb.toggled.connect(lambda v, eid=eid: self._fx_toggled(eid, v))
             self.ext_lay.addWidget(cb)
+            amt = SliderRow("Amount", 0, 100, 100, step=1, decimals=0, suffix=" %", default=100)
+            amt.valueChanged.connect(lambda v, eid=eid: self._fx_amount(eid, v / 100))
+            amt.setVisible(False)
+            self.ext_lay.addWidget(amt)
             self.ext_checks[eid] = cb
+            self.ext_amounts[eid] = amt
 
     def _fx_toggled(self, eid, on):
+        if eid in getattr(self, "ext_amounts", {}):
+            self.ext_amounts[eid].setVisible(on)
         if self._loading or not self.clips:
             return
         fx = [dict(f) for f in self.clips[0].get("fx", []) if f.get("id") != eid]
         if on:
-            fx.append({"id": eid, "amount": 1.0})
+            fx.append({"id": eid, "amount": self.ext_amounts[eid].value() / 100 if eid in self.ext_amounts else 1.0})
         self._emit("fx", fx, "Effect", True)
+
+    def _fx_amount(self, eid, v):
+        if self._loading or not self.clips:
+            return
+        fx = [dict(f) for f in self.clips[0].get("fx", [])]
+        for f in fx:
+            if f.get("id") == eid:
+                f["amount"] = v
+        self._emit("fx", fx, "Effect amount")
+
+    def rebuild_styles(self):
+        self._loading = True
+        cur = self.style_box.currentData()
+        self.style_box.clear()
+        for sid in textrender.STYLE_ORDER:
+            self.style_box.addItem(textrender.STYLES[sid].name, sid)
+        idx = self.style_box.findData(cur)
+        self.style_box.setCurrentIndex(max(0, idx))
+        self._loading = False
 
     def _crop_changed(self, i, v):
         if self._loading or not self.clips:
@@ -249,14 +282,15 @@ class Inspector(QWidget):
         self.s_speed.valueChanged.connect(self._speed_live)
         self.s_speed.editingFinished.connect(lambda: self.committed.emit("Speed"))
         lay.addWidget(self.s_speed)
-        row = QHBoxLayout()
-        for v in (0.25, 0.5, 1.0, 1.5, 2.0, 4.0):
-            b = QPushButton(f"{v:g}x")
-            b.setFixedWidth(52)
+        from PyQt6.QtWidgets import QGridLayout
+        row = QGridLayout()
+        row.setSpacing(6)
+        for i, v in enumerate((0.25, 0.5, 1.0, 1.5, 2.0, 4.0)):
+            b = QPushButton(f"{v:g}×")
+            b.setMinimumWidth(40)
             b.clicked.connect(lambda _=False, v=v: (self.s_speed.setValue(v), self._speed_live(v),
                                                     self.committed.emit("Speed")))
-            row.addWidget(b)
-        row.addStretch(1)
+            row.addWidget(b, i // 3, i % 3)
         lay.addLayout(row)
         lay.addWidget(section("Pitch"))
         self.keep_pitch = Toggle("Keep the original pitch")
@@ -275,15 +309,70 @@ class Inspector(QWidget):
     def _build_audio(self):
         w, lay = self._page("Audio")
         self.audio_page = w
-        lay.addWidget(section("Volume"))
-        self.s_vol = self._slider(lay, "Volume", "volume", 0, 200, 1, 0, " %", factor=100, default=100)
-        self.mute = Toggle("Mute this clip")
-        self.mute.toggled.connect(lambda v: self._emit("muted", v, "Mute", True))
-        lay.addWidget(self.mute)
         self.no_audio = QLabel("This clip has no sound.")
         self.no_audio.setObjectName("Dim")
         lay.addWidget(self.no_audio)
+        self.audio_box = QWidget()
+        al = QVBoxLayout(self.audio_box)
+        al.setContentsMargins(0, 0, 0, 0)
+        al.setSpacing(6)
+        al.addWidget(section("Level"))
+        self.s_vol = self._slider(al, "Volume", "volume", 0, 200, 1, 0, " %", factor=100, default=100)
+        self.s_pan = self._slider(al, "Pan  L ↔ R", "pan", -100, 100, 1, 0, factor=100, default=0)
+        row = QHBoxLayout()
+        self.mute = Toggle("Mute this clip")
+        self.mute.toggled.connect(lambda v: self._emit("muted", v, "Mute", True))
+        row.addWidget(self.mute, 1)
+        self.norm_btn = QPushButton("Normalize")
+        self.norm_btn.setToolTip("Set the volume so the loudest moment peaks just below 0 dB")
+        self.norm_btn.clicked.connect(self.normalizeRequested)
+        row.addWidget(self.norm_btn)
+        al.addLayout(row)
+        al.addWidget(section("Fades"))
+        self.s_afi = self._slider(al, "Fade in", "afade_in", 0, 10, 0.05, 2, " s", default=0)
+        self.s_afo = self._slider(al, "Fade out", "afade_out", 0, 10, 0.05, 2, " s", default=0)
+        tip = QLabel("Tip: drag the small handles at the top corners of the clip on the timeline.")
+        tip.setObjectName("Dim")
+        tip.setWordWrap(True)
+        al.addWidget(tip)
+        al.addWidget(section("Equalizer"))
+        self.s_eql = self._slider(al, "Bass", "eq_low", -12, 12, 0.5, 1, " dB", default=0)
+        self.s_eqm = self._slider(al, "Mids", "eq_mid", -12, 12, 0.5, 1, " dB", default=0)
+        self.s_eqh = self._slider(al, "Treble", "eq_high", -12, 12, 0.5, 1, " dB", default=0)
+        from PyQt6.QtWidgets import QGridLayout
+        presets = QGridLayout()
+        presets.setSpacing(6)
+        for i, (name, vals) in enumerate((("Flat", (0, 0, 0)), ("Bass boost", (6, 0, 1)), ("Voice", (-3, 3, 2)),
+                                          ("Bright", (0, 1, 5)), ("Warm", (3, 1, -3)), ("Telephone", (-10, 6, -8)))):
+            b = QPushButton(name)
+            b.setMinimumWidth(40)
+            b.clicked.connect(lambda _=False, v=vals: self._eq_preset(v))
+            presets.addWidget(b, i // 3, i % 3)
+        al.addLayout(presets)
+        al.addWidget(section("Clean up & space"))
+        self.s_dn = self._slider(al, "Noise removal", "denoise", 0, 100, 1, 0, " %", factor=100, default=0)
+        self.comp = Toggle("Even out loud and quiet parts (compressor)")
+        self.comp.toggled.connect(lambda v: self._emit("compress", v, "Compressor", True))
+        al.addWidget(self.comp)
+        self.s_rev = self._slider(al, "Reverb", "reverb", 0, 100, 1, 0, " %", factor=100, default=0)
+        reset = QPushButton("Reset audio effects")
+        reset.clicked.connect(self._reset_audio)
+        al.addWidget(reset, 0, Qt.AlignmentFlag.AlignLeft)
+        lay.addWidget(self.audio_box)
         lay.addStretch(1)
+
+    def _eq_preset(self, vals):
+        for field, v, slider in zip(("eq_low", "eq_mid", "eq_high"), vals, (self.s_eql, self.s_eqm, self.s_eqh)):
+            slider.setValue(v)
+            self.changed.emit({field: float(v)})
+        self.committed.emit("EQ preset")
+
+    def _reset_audio(self):
+        for f, v in (("pan", 0.0), ("afade_in", 0.0), ("afade_out", 0.0), ("eq_low", 0.0), ("eq_mid", 0.0),
+                     ("eq_high", 0.0), ("compress", False), ("denoise", 0.0), ("reverb", 0.0), ("volume", 1.0)):
+            self.changed.emit({f: v})
+        self.committed.emit("Reset audio")
+        self.load(self.clips)
 
     def _build_text(self):
         w, lay = self._page("Text")
@@ -293,6 +382,14 @@ class Inspector(QWidget):
         self.text_edit.setFixedHeight(80)
         self.text_edit.textChanged.connect(lambda: self._emit("text", self.text_edit.toPlainText(), "Edit text"))
         lay.addWidget(self.text_edit)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Style"))
+        self.style_box = QComboBox()
+        self.style_box.currentIndexChanged.connect(
+            lambda _i: self._emit("text_style", self.style_box.currentData() or "none", "Text style", True))
+        row.addWidget(self.style_box, 1)
+        lay.addLayout(row)
+        self.rebuild_styles()
         row = QHBoxLayout()
         row.addWidget(QLabel("Font"))
         self.font_box = QFontComboBox()
@@ -355,7 +452,10 @@ class Inspector(QWidget):
             self.mute.setChecked(bool(c.get("muted")))
             self.filter_label.setText("Filter: " + filters.get(c.get("filter", "none")).name)
             for eid, cb in getattr(self, "ext_checks", {}).items():
-                cb.setChecked(any(f.get("id") == eid for f in c.get("fx", [])))
+                on = next((f for f in c.get("fx", []) if f.get("id") == eid), None)
+                cb.setChecked(on is not None)
+                self.ext_amounts[eid].setVisible(on is not None)
+                self.ext_amounts[eid].setValue(float(on.get("amount", 1.0)) * 100 if on else 100)
             kind = c["kind"]
             visual = kind in ("video", "image", "text")
             self.tabs.setTabVisible(0, visual)
@@ -367,15 +467,16 @@ class Inspector(QWidget):
             self.stab_on.setEnabled(kind == "video")
             self.s_stab.setEnabled(kind == "video")
             has_sound = c.has_sound
-            self.s_vol.setEnabled(has_sound)
-            self.mute.setEnabled(has_sound)
+            self.audio_box.setVisible(has_sound)
             self.no_audio.setVisible(not has_sound)
+            self.comp.setChecked(bool(c.get("compress")))
             self.fit_btn.setEnabled(kind != "text")
             self.fill_btn.setEnabled(kind != "text")
             if kind == "text":
                 if self.text_edit.toPlainText() != c.get("text", ""):
                     self.text_edit.setPlainText(c.get("text", ""))
                 self.font_box.setCurrentFont(QFont(c.get("font", "Segoe UI")))
+                self.style_box.setCurrentIndex(max(0, self.style_box.findData(c.get("text_style", "none"))))
                 self.text_col.setColor(c.get("text_color", "#ffffff"))
                 self.bold.setChecked(bool(c.get("bold", True)))
                 self.outline.setChecked(bool(c.get("text_outline", True)))

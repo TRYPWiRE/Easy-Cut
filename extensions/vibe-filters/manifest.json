@@ -1,0 +1,35 @@
+{
+  "id": "vibe-filters",
+  "name": "Vibe Filters",
+  "version": "1.0.0",
+  "category": "Filters",
+  "description": "Bold social-media looks: dreamy pastels, neon nights, cyber pink, retro 80s and icy arctic.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "filter",
+      "id": "vibe-pastel",
+      "name": "Pastel Dream"
+    },
+    {
+      "type": "filter",
+      "id": "vibe-neon",
+      "name": "Neon Nights"
+    },
+    {
+      "type": "filter",
+      "id": "vibe-cyber-pink",
+      "name": "Cyber Pink"
+    },
+    {
+      "type": "filter",
+      "id": "vibe-retro80",
+      "name": "Retro 80s"
+    },
+    {
+      "type": "filter",
+      "id": "vibe-arctic",
+      "name": "Arctic"
+    }
+  ]
+}

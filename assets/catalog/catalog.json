@@ -1,0 +1,472 @@
+{
+  "packs": [
+    {
+      "id": "cinematic-filters",
+      "name": "Cinematic Filters",
+      "version": "1.0.0",
+      "category": "Filters",
+      "description": "Film-grade colour looks: teal & orange blockbuster, bleach bypass, moody blues and golden warmth.",
+      "min_app": "1.0.0",
+      "size": 1009,
+      "items": [
+        {
+          "type": "filter",
+          "id": "cine-teal-orange",
+          "name": "Teal & Orange"
+        },
+        {
+          "type": "filter",
+          "id": "cine-bleach",
+          "name": "Bleach Bypass"
+        },
+        {
+          "type": "filter",
+          "id": "cine-moody-blue",
+          "name": "Moody Blue"
+        },
+        {
+          "type": "filter",
+          "id": "cine-golden-hour",
+          "name": "Golden Hour"
+        },
+        {
+          "type": "filter",
+          "id": "cine-matte",
+          "name": "Matte Film"
+        }
+      ]
+    },
+    {
+      "id": "vibe-filters",
+      "name": "Vibe Filters",
+      "version": "1.0.0",
+      "category": "Filters",
+      "description": "Bold social-media looks: dreamy pastels, neon nights, cyber pink, retro 80s and icy arctic.",
+      "min_app": "1.0.0",
+      "size": 920,
+      "items": [
+        {
+          "type": "filter",
+          "id": "vibe-pastel",
+          "name": "Pastel Dream"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-neon",
+          "name": "Neon Nights"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-cyber-pink",
+          "name": "Cyber Pink"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-retro80",
+          "name": "Retro 80s"
+        },
+        {
+          "type": "filter",
+          "id": "vibe-arctic",
+          "name": "Arctic"
+        }
+      ]
+    },
+    {
+      "id": "dynamic-transitions",
+      "name": "Dynamic Transitions",
+      "version": "1.0.0",
+      "category": "Transitions",
+      "description": "High-energy cuts: spin, wipes, a bouncy pop and a swinging entrance.",
+      "min_app": "1.0.0",
+      "size": 776,
+      "items": [
+        {
+          "type": "transition",
+          "id": "dyn-spin",
+          "name": "Spin"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-wipe-right",
+          "name": "Wipe Right"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-wipe-down",
+          "name": "Wipe Down"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-pop",
+          "name": "Pop"
+        },
+        {
+          "type": "transition",
+          "id": "dyn-swing",
+          "name": "Swing In"
+        }
+      ]
+    },
+    {
+      "id": "essential-transitions",
+      "name": "Essential Transitions",
+      "version": "1.0.0",
+      "category": "Transitions",
+      "description": "The everyday cuts: flash to white, zoom in, zoom out and smooth slides up and down.",
+      "min_app": "1.0.0",
+      "size": 808,
+      "items": [
+        {
+          "type": "transition",
+          "id": "ess-dip-white",
+          "name": "Dip to White"
+        },
+        {
+          "type": "transition",
+          "id": "ess-zoom-in",
+          "name": "Zoom In"
+        },
+        {
+          "type": "transition",
+          "id": "ess-zoom-out",
+          "name": "Zoom Out"
+        },
+        {
+          "type": "transition",
+          "id": "ess-slide-up",
+          "name": "Slide Up"
+        },
+        {
+          "type": "transition",
+          "id": "ess-slide-down",
+          "name": "Slide Down"
+        }
+      ]
+    },
+    {
+      "id": "fun-pack",
+      "name": "Fun Pack",
+      "version": "1.0.0",
+      "category": "Animations",
+      "description": "Playful, bouncy motion: elastic snap, wobble, bounce drop, heartbeat and whirl.",
+      "min_app": "1.0.0",
+      "size": 771,
+      "items": [
+        {
+          "type": "animation",
+          "id": "fun-elastic",
+          "name": "Elastic"
+        },
+        {
+          "type": "animation",
+          "id": "fun-wobble",
+          "name": "Wobble"
+        },
+        {
+          "type": "animation",
+          "id": "fun-bounce",
+          "name": "Bounce Drop"
+        },
+        {
+          "type": "animation",
+          "id": "fun-heartbeat",
+          "name": "Heartbeat"
+        },
+        {
+          "type": "animation",
+          "id": "fun-whirl",
+          "name": "Whirl"
+        }
+      ]
+    },
+    {
+      "id": "motion-pack",
+      "name": "Motion Pack",
+      "version": "1.0.0",
+      "category": "Animations",
+      "description": "Smooth, polished entrances and exits: spin, swing, zoom out, rise and sweep.",
+      "min_app": "1.0.0",
+      "size": 765,
+      "items": [
+        {
+          "type": "animation",
+          "id": "mot-spin",
+          "name": "Spin"
+        },
+        {
+          "type": "animation",
+          "id": "mot-swing",
+          "name": "Swing"
+        },
+        {
+          "type": "animation",
+          "id": "mot-zoom-out",
+          "name": "Zoom Out"
+        },
+        {
+          "type": "animation",
+          "id": "mot-rise",
+          "name": "Rise"
+        },
+        {
+          "type": "animation",
+          "id": "mot-sweep",
+          "name": "Sweep"
+        }
+      ]
+    },
+    {
+      "id": "retro-fx",
+      "name": "Retro FX",
+      "version": "1.0.0",
+      "category": "Effects",
+      "description": "Old-school looks: VHS tape, film grain, vignette, pixelate and RGB split.",
+      "min_app": "1.0.0",
+      "size": 1678,
+      "items": [
+        {
+          "type": "effect",
+          "id": "rfx-vhs",
+          "name": "VHS"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-grain",
+          "name": "Film Grain"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-vignette",
+          "name": "Vignette"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-pixelate",
+          "name": "Pixelate"
+        },
+        {
+          "type": "effect",
+          "id": "rfx-rgb-split",
+          "name": "RGB Split"
+        }
+      ]
+    },
+    {
+      "id": "stylize-fx",
+      "name": "Stylize FX",
+      "version": "1.0.0",
+      "category": "Effects",
+      "description": "Creative looks: soft blur, crisp sharpen, dreamy glow, posterize and emboss.",
+      "min_app": "1.0.0",
+      "size": 1546,
+      "items": [
+        {
+          "type": "effect",
+          "id": "sfx-blur",
+          "name": "Blur"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-sharpen",
+          "name": "Sharpen"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-glow",
+          "name": "Glow"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-posterize",
+          "name": "Posterize"
+        },
+        {
+          "type": "effect",
+          "id": "sfx-emboss",
+          "name": "Emboss"
+        }
+      ]
+    },
+    {
+      "id": "bold-text",
+      "name": "Bold Text Styles",
+      "version": "1.0.0",
+      "category": "Text",
+      "description": "Chunky title looks: 3D extrude, comic pop, chrome, rainbow and retro stripes.",
+      "min_app": "1.0.0",
+      "size": 1328,
+      "items": [
+        {
+          "type": "text_style",
+          "id": "txt-3d",
+          "name": "3D Extrude"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-comic",
+          "name": "Comic Pop"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-chrome",
+          "name": "Chrome"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-rainbow",
+          "name": "Rainbow"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-retro",
+          "name": "Retro Stripes"
+        }
+      ]
+    },
+    {
+      "id": "neon-text",
+      "name": "Neon & Glow Text",
+      "version": "1.0.0",
+      "category": "Text",
+      "description": "Glowing title styles: neon tube, electric outline, glitch, hologram and fire.",
+      "min_app": "1.0.0",
+      "size": 1433,
+      "items": [
+        {
+          "type": "text_style",
+          "id": "txt-neon",
+          "name": "Neon Glow"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-electric",
+          "name": "Electric"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-glitch",
+          "name": "Glitch"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-hologram",
+          "name": "Hologram"
+        },
+        {
+          "type": "text_style",
+          "id": "txt-fire",
+          "name": "Fire"
+        }
+      ]
+    },
+    {
+      "id": "text-animations",
+      "name": "Text Animations",
+      "version": "1.0.0",
+      "category": "Text",
+      "description": "Animated titles: typewriter, wipe, rise and drop reveals, and a smooth glide-in.",
+      "min_app": "1.0.0",
+      "size": 800,
+      "items": [
+        {
+          "type": "animation",
+          "id": "tan-typewriter",
+          "name": "Typewriter"
+        },
+        {
+          "type": "animation",
+          "id": "tan-wipe",
+          "name": "Wipe Reveal"
+        },
+        {
+          "type": "animation",
+          "id": "tan-rise",
+          "name": "Rise Reveal"
+        },
+        {
+          "type": "animation",
+          "id": "tan-drop",
+          "name": "Drop Reveal"
+        },
+        {
+          "type": "animation",
+          "id": "tan-glide",
+          "name": "Glide In"
+        }
+      ]
+    },
+    {
+      "id": "display-fonts",
+      "name": "Display Fonts",
+      "version": "1.0.0",
+      "category": "Fonts",
+      "description": "Big, bold headline fonts: Bungee, Monoton, Bangers, Creepster and Righteous.",
+      "min_app": "1.0.0",
+      "size": 203179,
+      "items": [
+        {
+          "type": "font",
+          "id": "fnt-bungee",
+          "name": "Bungee"
+        },
+        {
+          "type": "font",
+          "id": "fnt-monoton",
+          "name": "Monoton"
+        },
+        {
+          "type": "font",
+          "id": "fnt-bangers",
+          "name": "Bangers"
+        },
+        {
+          "type": "font",
+          "id": "fnt-creepster",
+          "name": "Creepster"
+        },
+        {
+          "type": "font",
+          "id": "fnt-righteous",
+          "name": "Righteous"
+        }
+      ]
+    },
+    {
+      "id": "retro-fonts",
+      "name": "Retro & Script Fonts",
+      "version": "1.0.0",
+      "category": "Fonts",
+      "description": "Arcade, script and sci-fi fonts: Press Start 2P, Pacifico, Lobster, Audiowide and Orbitron.",
+      "min_app": "1.0.0",
+      "size": 401060,
+      "items": [
+        {
+          "type": "font",
+          "id": "fnt-press-start",
+          "name": "Press Start 2P"
+        },
+        {
+          "type": "font",
+          "id": "fnt-pacifico",
+          "name": "Pacifico"
+        },
+        {
+          "type": "font",
+          "id": "fnt-lobster",
+          "name": "Lobster"
+        },
+        {
+          "type": "font",
+          "id": "fnt-audiowide",
+          "name": "Audiowide"
+        },
+        {
+          "type": "font",
+          "id": "fnt-orbitron",
+          "name": "Orbitron"
+        }
+      ]
+    }
+  ]
+}

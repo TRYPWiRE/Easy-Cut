@@ -1,0 +1,35 @@
+{
+  "id": "text-animations",
+  "name": "Text Animations",
+  "version": "1.0.0",
+  "category": "Text",
+  "description": "Animated titles: typewriter, wipe, rise and drop reveals, and a smooth glide-in.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "animation",
+      "id": "tan-typewriter",
+      "name": "Typewriter"
+    },
+    {
+      "type": "animation",
+      "id": "tan-wipe",
+      "name": "Wipe Reveal"
+    },
+    {
+      "type": "animation",
+      "id": "tan-rise",
+      "name": "Rise Reveal"
+    },
+    {
+      "type": "animation",
+      "id": "tan-drop",
+      "name": "Drop Reveal"
+    },
+    {
+      "type": "animation",
+      "id": "tan-glide",
+      "name": "Glide In"
+    }
+  ]
+}

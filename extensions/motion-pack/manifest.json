@@ -1,0 +1,35 @@
+{
+  "id": "motion-pack",
+  "name": "Motion Pack",
+  "version": "1.0.0",
+  "category": "Animations",
+  "description": "Smooth, polished entrances and exits: spin, swing, zoom out, rise and sweep.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "animation",
+      "id": "mot-spin",
+      "name": "Spin"
+    },
+    {
+      "type": "animation",
+      "id": "mot-swing",
+      "name": "Swing"
+    },
+    {
+      "type": "animation",
+      "id": "mot-zoom-out",
+      "name": "Zoom Out"
+    },
+    {
+      "type": "animation",
+      "id": "mot-rise",
+      "name": "Rise"
+    },
+    {
+      "type": "animation",
+      "id": "mot-sweep",
+      "name": "Sweep"
+    }
+  ]
+}

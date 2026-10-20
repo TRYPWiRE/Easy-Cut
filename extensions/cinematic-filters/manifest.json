@@ -1,0 +1,35 @@
+{
+  "id": "cinematic-filters",
+  "name": "Cinematic Filters",
+  "version": "1.0.0",
+  "category": "Filters",
+  "description": "Film-grade colour looks: teal & orange blockbuster, bleach bypass, moody blues and golden warmth.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "filter",
+      "id": "cine-teal-orange",
+      "name": "Teal & Orange"
+    },
+    {
+      "type": "filter",
+      "id": "cine-bleach",
+      "name": "Bleach Bypass"
+    },
+    {
+      "type": "filter",
+      "id": "cine-moody-blue",
+      "name": "Moody Blue"
+    },
+    {
+      "type": "filter",
+      "id": "cine-golden-hour",
+      "name": "Golden Hour"
+    },
+    {
+      "type": "filter",
+      "id": "cine-matte",
+      "name": "Matte Film"
+    }
+  ]
+}

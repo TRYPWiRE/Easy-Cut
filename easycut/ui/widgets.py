@@ -156,10 +156,15 @@ class Toggle(QCheckBox):
         on = self.isChecked()
         rad = h / 2 if c.get("radius", 8) > 0 else 2
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(c["accent"] if on else c["pressed"]))
+        on_col = c.get("switch_on", c["accent"]) if c.get("apple") else c["accent"]
+        p.setBrush(QColor(on_col if on else (c["pressed"] if not c.get("apple") else
+                                              ("#39393d" if c.get("dark") else "#e2e2e7"))))
         p.drawRoundedRect(r, rad, rad)
         k = h - 6
         kx = r.right() - k - 3 if on else r.left() + 3
+        if c.get("apple"):
+            p.setBrush(QColor(0, 0, 0, 40))
+            p.drawEllipse(QRectF(kx, y + 3.8, k, k))
         p.setBrush(QColor("#ffffff" if not c.get("cyber") or not on else c["accent_text"]))
         p.drawRoundedRect(QRectF(kx, y + 3, k, k), rad - 3 if rad > 3 else 1, rad - 3 if rad > 3 else 1)
         p.setPen(QColor(c["text"]))
@@ -302,8 +307,11 @@ def fmt_time(t, fps=30, frames=False):
 class Tile(QPushButton):
     """Library tile: picture (or themed icon) on top, label underneath."""
 
-    def __init__(self, label, image=None, icon_name=None, size=(128, 104), icon_size=30, parent=None):
+    def __init__(self, label, image=None, icon_name=None, size=(128, 104), icon_size=30, parent=None,
+                 locked=False, font=None):
         super().__init__(parent)
+        self.locked = locked            # part of a pack that isn't downloaded yet: drawn greyed with a lock
+        self.font_family = font         # draw the label in this font (font tiles)
         self.label = label
         self.image = image              # QImage / QPixmap or None
         self.icon_name = icon_name
@@ -335,6 +343,8 @@ class Tile(QPushButton):
             path.addRoundedRect(r, rad, rad)
             p.save()
             p.setClipPath(path)
+            if self.locked:
+                p.setOpacity(0.38)
             p.drawPixmap(r.toRect(), pm)
             p.restore()
         elif self.icon_name:
@@ -342,7 +352,14 @@ class Tile(QPushButton):
             col = c["accent_text"] if (self.isChecked() and c.get("cyber")) else c["accent"]
             p.drawPixmap(int(area.center().x() - sz / 2), int(area.center().y() - sz / 2),
                          icons.pixmap(self.icon_name, sz, col))
-        p.setPen(QColor(c["text_strong"] if self.isChecked() else c["text"]))
+        if self.locked:
+            # lock badge in the top-right corner of the picture
+            br = QRectF(self.width() - 30, 9, 21, 21)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(0, 0, 0, 150))
+            p.drawEllipse(br)
+            p.drawPixmap(int(br.left() + 3), int(br.top() + 3), icons.pixmap("lock", 15, "#ffffff"))
+        p.setPen(QColor(c["text_dim"] if self.locked else c["text_strong"] if self.isChecked() else c["text"]))
         f = p.font()
         f.setBold(self.isChecked())
         p.setFont(f)

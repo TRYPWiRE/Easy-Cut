@@ -71,6 +71,7 @@ def main():
         entries[ext_id] = {
             "id": ext_id, "name": meta.get("name", ext_id), "version": ver,
             "description": meta.get("description", ""), "provides": meta.get("provides", []),
+            "category": meta.get("category", ""), "items": meta.get("items", []), "size": os.path.getsize(dest),
             "min_app": meta.get("min_app", "0.1.0"),
             "url": f"{RAW_BASE}/updates/extensions/{zname}", "sha256": sha,
         }

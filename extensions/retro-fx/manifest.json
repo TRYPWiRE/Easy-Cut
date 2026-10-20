@@ -1,0 +1,35 @@
+{
+  "id": "retro-fx",
+  "name": "Retro FX",
+  "version": "1.0.0",
+  "category": "Effects",
+  "description": "Old-school looks: VHS tape, film grain, vignette, pixelate and RGB split.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "effect",
+      "id": "rfx-vhs",
+      "name": "VHS"
+    },
+    {
+      "type": "effect",
+      "id": "rfx-grain",
+      "name": "Film Grain"
+    },
+    {
+      "type": "effect",
+      "id": "rfx-vignette",
+      "name": "Vignette"
+    },
+    {
+      "type": "effect",
+      "id": "rfx-pixelate",
+      "name": "Pixelate"
+    },
+    {
+      "type": "effect",
+      "id": "rfx-rgb-split",
+      "name": "RGB Split"
+    }
+  ]
+}

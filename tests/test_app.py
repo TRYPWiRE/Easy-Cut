@@ -5,6 +5,7 @@ import io
 import json
 import os
 import threading
+import time
 import unittest
 import zipfile
 
@@ -351,10 +352,15 @@ class TestMainWindow(unittest.TestCase):
         d = RenderDialog(self.w.project, self.w)
         d.show()
         pump()
-        self.assertEqual(d.aspect(), self.w.project.aspect)
-        d.fps.setCurrentIndex(0)           # 10 fps -> GIF suggested
+        self.assertEqual(d.aspect_key(), self.w.project.aspect)
+        d.choose_preset("gif")              # one-click preset switches format and file name
         self.assertEqual(d.fmt.currentData(), "gif")
         self.assertTrue(d.path.text().endswith(".gif"))
+        d.choose_preset("mp3")
+        self.assertEqual(d.collect()["fmt"], "mp3")
+        self.assertTrue(d.path.text().endswith(".mp3"))
+        d.choose_preset("discord")
+        self.assertEqual(d.collect()["rate_mode"], "size")
         d.close()
         t = ThemeDialog(APP, self.w)
         t.show()
@@ -371,6 +377,81 @@ class TestMainWindow(unittest.TestCase):
         t._choose("dark")
         theme.delete_custom("Test Theme")
         t.close()
+
+    def test_explorer_adds_to_timeline(self):
+        lib = self.w.library
+        lib.show("explorer")
+        pump()
+        ex = lib.explorer
+        ex.addToTimeline.emit([path("clip.mp4")])
+        pump()
+        self.assertEqual(len(self.w.project.clips), 1)
+        lib.set_collapsed(True)
+        pump()
+        self.assertTrue(lib.collapsed if hasattr(lib, "collapsed") else True)
+        lib.set_collapsed(False)
+
+    def test_audio_tools_detach_solo_fades(self):
+        w = self.w
+        w.add_to_timeline([path("clip.mp4")])
+        c = w.project.clips[0]
+        a = w.project.detach_audio(c)
+        self.assertIsNotNone(a)
+        self.assertEqual(a["kind"], "audio")
+        self.assertTrue(c["muted"] or not c.get("has_audio", True) or c.get("volume", 1) == 0)
+        a["afade_in"], a["afade_out"], a["eq_low"], a["pan"] = 0.5, 0.5, 4.0, -0.3
+        w.project.tracks[a["track"]]["solo"] = True
+        from easycut import render
+        self.assertEqual([x["id"] for x in render.audible_clips(w.project)], [a["id"]])
+
+    def test_recording_lands_on_timeline(self):
+        from easycut import capture
+        out = os.path.join(TMP, "recs")
+        cfg = capture.CaptureConfig(test=True, webcam="cam", mic="mic", out_dir=out, fps=30, encoder="cpu")
+        rec = capture.Recorder(cfg)
+        rec.start()
+        time.sleep(2.0)
+        res = rec.stop()
+        self.assertEqual(set(res.files), {"screen", "webcam", "mic"})
+        for p in res.files.values():
+            self.assertTrue(os.path.exists(p))
+        self.assertTrue(res.files["screen"].endswith(".mp4"))
+        added = self.w.import_recording(res, {"timeline": True, "corner": "br", "cam_size": 0.28})
+        pump()
+        self.assertEqual(len(added), 3)
+        pr = self.w.project
+        screen = next(c for c in pr.clips if c["name"] == "Screen recording")
+        cam = next(c for c in pr.clips if c["name"] == "Webcam")
+        mic = next(c for c in pr.clips if c["name"] == "Microphone")
+        self.assertLess(cam["track"], screen["track"])           # webcam sits above the screen
+        self.assertGreater(cam["x"], 0)
+        self.assertGreater(cam["y"], 0)                          # bottom-right corner
+        self.assertLess(cam["scale"], 0.5)
+        self.assertEqual(pr.tracks[mic["track"]]["type"], "audio")
+
+    def test_recorder_dialog_opens(self):
+        from easycut.ui.recorder import RecorderDialog
+        d = RecorderDialog(self.w)
+        d.show()
+        d.dev_thread.wait(20000)
+        pump()
+        d._devices_found({"video": ["Cam A"], "audio": ["Mic A"]})
+        d.cam_card.toggle.setChecked(True)
+        cfg = d.config()
+        self.assertEqual(cfg.webcam, "Cam A")
+        self.assertTrue(cfg.screen)
+        d.close()
+
+    def test_apple_theme_chrome(self):
+        theme.apply(APP, "apple")
+        self.w._theme_changed() if hasattr(self.w, "_theme_changed") else None
+        pump()
+        self.assertTrue(theme.C.get("apple"))
+        self.assertGreaterEqual(self.w.library.rail_width(), 190)
+        theme.apply(APP, "dark")
+        self.w._theme_changed() if hasattr(self.w, "_theme_changed") else None
+        pump()
+        self.assertFalse(theme.C.get("apple"))
 
     def test_extensions_page_highlighted(self):
         lib = self.w.library

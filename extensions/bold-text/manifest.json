@@ -1,0 +1,35 @@
+{
+  "id": "bold-text",
+  "name": "Bold Text Styles",
+  "version": "1.0.0",
+  "category": "Text",
+  "description": "Chunky title looks: 3D extrude, comic pop, chrome, rainbow and retro stripes.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "text_style",
+      "id": "txt-3d",
+      "name": "3D Extrude"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-comic",
+      "name": "Comic Pop"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-chrome",
+      "name": "Chrome"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-rainbow",
+      "name": "Rainbow"
+    },
+    {
+      "type": "text_style",
+      "id": "txt-retro",
+      "name": "Retro Stripes"
+    }
+  ]
+}

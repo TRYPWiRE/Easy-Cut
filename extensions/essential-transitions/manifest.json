@@ -1,0 +1,35 @@
+{
+  "id": "essential-transitions",
+  "name": "Essential Transitions",
+  "version": "1.0.0",
+  "category": "Transitions",
+  "description": "The everyday cuts: flash to white, zoom in, zoom out and smooth slides up and down.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "transition",
+      "id": "ess-dip-white",
+      "name": "Dip to White"
+    },
+    {
+      "type": "transition",
+      "id": "ess-zoom-in",
+      "name": "Zoom In"
+    },
+    {
+      "type": "transition",
+      "id": "ess-zoom-out",
+      "name": "Zoom Out"
+    },
+    {
+      "type": "transition",
+      "id": "ess-slide-up",
+      "name": "Slide Up"
+    },
+    {
+      "type": "transition",
+      "id": "ess-slide-down",
+      "name": "Slide Down"
+    }
+  ]
+}

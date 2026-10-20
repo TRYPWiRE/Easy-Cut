@@ -1,0 +1,35 @@
+{
+  "id": "fun-pack",
+  "name": "Fun Pack",
+  "version": "1.0.0",
+  "category": "Animations",
+  "description": "Playful, bouncy motion: elastic snap, wobble, bounce drop, heartbeat and whirl.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "animation",
+      "id": "fun-elastic",
+      "name": "Elastic"
+    },
+    {
+      "type": "animation",
+      "id": "fun-wobble",
+      "name": "Wobble"
+    },
+    {
+      "type": "animation",
+      "id": "fun-bounce",
+      "name": "Bounce Drop"
+    },
+    {
+      "type": "animation",
+      "id": "fun-heartbeat",
+      "name": "Heartbeat"
+    },
+    {
+      "type": "animation",
+      "id": "fun-whirl",
+      "name": "Whirl"
+    }
+  ]
+}

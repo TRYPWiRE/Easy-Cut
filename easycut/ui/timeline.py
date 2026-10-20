@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QWidget, QMenu, QScrollBar
 from .. import theme, media, icons
 from .widgets import fmt_time
 
-HEADER_W = 132
+HEADER_W = 150
 RULER_H = 28
 H_VIDEO = 62
 H_AUDIO = 46
@@ -259,6 +259,9 @@ class Timeline(QWidget):
             if r.right() < HEADER_W or r.left() > W or r.bottom() < RULER_H or r.top() > H:
                 continue
             self.paint_clip(p, clip, r, fm, rad)
+        for clip in self.project.clips:
+            if clip["track"] < len(self.project.tracks):
+                self.paint_transition(p, clip, fm)
         if self.snap_line is not None:
             x = self.x_of(self.snap_line)
             p.setPen(QPen(QColor(c["accent2"]), 1.4, Qt.PenStyle.DashLine))
@@ -283,6 +286,18 @@ class Timeline(QWidget):
             active = tr["hidden"] or tr["muted"]
             p.drawPixmap(int(HEADER_W - 40), int(y + h / 2 - 9),
                          icons.pixmap(name, 18, c["accent"] if active else c["text_dim"]))
+            if tr["type"] == "audio":
+                sr = QRectF(HEADER_W - 64, y + h / 2 - 9, 18, 18)
+                p.setPen(Qt.PenStyle.NoPen)
+                p.setBrush(QColor(c["accent2"] if tr.get("solo") else c["panel2"]))
+                p.drawRoundedRect(sr, 4, 4)
+                p.setPen(QColor("#ffffff" if tr.get("solo") else c["text_dim"]))
+                fb = QFont(p.font())
+                fb.setBold(True)
+                p.save()
+                p.setFont(fb)
+                p.drawText(sr, Qt.AlignmentFlag.AlignCenter, "S")
+                p.restore()
             p.restore()
         p.setPen(QPen(QColor(c["border"]), 1))
         p.drawLine(HEADER_W, RULER_H, HEADER_W, H)
@@ -322,6 +337,102 @@ class Timeline(QWidget):
             if s * self.pps >= 70:
                 return s
         return 1200
+
+    def fade_handles(self, clip):
+        """{'fade_in': QPointF, 'fade_out': QPointF} handle positions for clips with sound."""
+        if not clip.has_sound:
+            return {}
+        r = self.clip_rect(clip)
+        top = r.top() + 17
+        xi = r.left() + min(r.width() / 2, float(clip.get("afade_in", 0)) * self.pps)
+        xo = r.right() - min(r.width() / 2, float(clip.get("afade_out", 0)) * self.pps)
+        return {"fade_in": QPointF(max(r.left() + 5, xi), top), "fade_out": QPointF(min(r.right() - 5, xo), top)}
+
+    def _paint_fades(self, p, clip, r):
+        c = theme.C
+        top = r.top() + 16
+        bottom = r.bottom()
+        shade = QColor(0, 0, 0, 110)
+        line = QColor(c["text_strong"] if not c.get("cyber") else c["accent"])
+        for which in ("afade_in", "afade_out"):
+            d = float(clip.get(which, 0))
+            if d <= 0.001:
+                continue
+            w = min(r.width() / 2, d * self.pps)
+            path = QPainterPath()
+            if which == "afade_in":
+                x0 = r.left()
+                path.moveTo(x0, bottom)
+                path.lineTo(x0, top)
+                path.quadTo(x0 + w * 0.15, bottom, x0 + w, top)
+                path.lineTo(x0, top)
+                curve = QPainterPath()
+                curve.moveTo(x0, bottom)
+                curve.quadTo(x0 + w * 0.15, top, x0 + w, top)
+            else:
+                x0 = r.right()
+                path.moveTo(x0, bottom)
+                path.lineTo(x0, top)
+                path.quadTo(x0 - w * 0.15, bottom, x0 - w, top)
+                path.lineTo(x0, top)
+                curve = QPainterPath()
+                curve.moveTo(x0, bottom)
+                curve.quadTo(x0 - w * 0.15, top, x0 - w, top)
+            p.fillPath(path, shade)
+            p.setPen(QPen(line, 1.4))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawPath(curve)
+        if True:
+            for pt in self.fade_handles(clip).values():
+                p.setPen(QPen(QColor(0, 0, 0, 160), 1))
+                p.setBrush(QColor("#ffffff"))
+                p.drawRect(QRectF(pt.x() - 3.5, pt.y() - 3.5, 7, 7))
+
+    def fade_handle_at(self, pos):
+        for clip in reversed(self.project.clips):
+            if clip["track"] >= len(self.project.tracks):
+                continue
+            for which, pt in self.fade_handles(clip).items():
+                if abs(pt.x() - pos.x()) <= 6 and abs(pt.y() - pos.y()) <= 6:
+                    return clip, which
+        return None, None
+
+    def transition_rect(self, clip):
+        """Marker rectangle for a clip's transition (over the cut), or None."""
+        from .. import animations
+        pre = animations.pre_roll(clip)
+        if pre <= 0:
+            return None
+        y = self.track_y(clip["track"])
+        x1, x2 = self.x_of(clip["start"] - pre), self.x_of(clip["start"])
+        w = max(18.0, x2 - x1)
+        return QRectF(x2 - w, y + 18, w, 20)
+
+    def paint_transition(self, p, clip, fm):
+        r = self.transition_rect(clip)
+        if r is None or r.right() < HEADER_W or r.left() > self.width():
+            return
+        from .. import animations
+        c = theme.C
+        sel = clip["id"] in self.selected
+        col = QColor(c["accent2"])
+        col.setAlpha(235)
+        p.setPen(QPen(QColor(c["text_strong"] if sel else c["timeline_bg"]), 1.5))
+        p.setBrush(col)
+        p.drawRoundedRect(r, 6, 6)
+        p.drawPixmap(int(r.left() + 3), int(r.center().y() - 7), icons.pixmap("transition", 14, "#ffffff"))
+        if r.width() > 60:
+            p.setPen(QColor("#ffffff"))
+            name = animations.get_transition(clip.get("trans_in")).name
+            p.drawText(r.adjusted(20, 0, -4, 0), Qt.AlignmentFlag.AlignVCenter,
+                       fm.elidedText(name, Qt.TextElideMode.ElideRight, int(r.width() - 24)))
+
+    def transition_at(self, pos):
+        for c in reversed(self.project.clips):
+            r = self.transition_rect(c) if c["track"] < len(self.project.tracks) else None
+            if r is not None and r.contains(pos):
+                return c
+        return None
 
     def paint_clip(self, p, clip, r, fm, rad):
         c = theme.C
@@ -420,6 +531,8 @@ class Timeline(QWidget):
                 else:
                     p.drawPolygon(QPolygonF([QPointF(r.right(), r.bottom()), QPointF(r.right() - w, r.top() + 16),
                                              QPointF(r.right(), r.top() + 16)]))
+        if clip.has_sound:
+            self._paint_fades(p, clip, r)
         p.restore()
         # border
         if sel:
@@ -460,7 +573,13 @@ class Timeline(QWidget):
             return
         if pos.x() < HEADER_W:
             ti = self.track_at(pos.y())
-            if ti >= 0 and pos.x() > HEADER_W - 46:
+            if ti >= 0 and HEADER_W - 66 < pos.x() <= HEADER_W - 44 and self.project.tracks[ti]["type"] == "audio":
+                tr = self.project.tracks[ti]
+                tr["solo"] = not tr.get("solo")
+                self.edited.emit("Solo track" if tr["solo"] else "Unsolo track")
+                self.update()
+                return
+            if ti >= 0 and pos.x() > HEADER_W - 44:
                 tr = self.project.tracks[ti]
                 if tr["type"] == "video":
                     tr["hidden"] = not tr["hidden"]
@@ -469,6 +588,22 @@ class Timeline(QWidget):
                     tr["muted"] = not tr["muted"]
                     self.edited.emit("Mute track" if tr["muted"] else "Unmute track")
                 self.update()
+            return
+        fclip, which = self.fade_handle_at(pos)
+        if fclip is not None:
+            self.selected = [fclip["id"]]
+            self.selectionChanged.emit(self.selected)
+            self.drag = {"mode": which, "clip": fclip, "x0": pos.x(), "changed": False,
+                         "orig": {fclip["id"]: (fclip["start"], fclip["duration"], fclip["in_point"], fclip["track"])},
+                         "f0": float(fclip.get("afade_in" if which == "fade_in" else "afade_out", 0))}
+            self.update()
+            return
+        tclip = self.transition_at(pos)
+        if tclip is not None:
+            self.selected = [tclip["id"]]
+            self.selectionChanged.emit(self.selected)
+            self.contextAction.emit("edit_transition")
+            self.update()
             return
         clip = self.clip_at(pos)
         mods = ev.modifiers()
@@ -505,6 +640,11 @@ class Timeline(QWidget):
             return
         pos = ev.position()
         if self.drag is None:
+            if self.fade_handle_at(pos)[0] is not None:
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+                self.setToolTip("Drag to fade the sound in/out")
+                return
+            self.setToolTip("")
             clip = self.clip_at(pos)
             cur = Qt.CursorShape.ArrowCursor
             if clip:
@@ -579,6 +719,15 @@ class Timeline(QWidget):
             if clip["kind"] in ("video", "audio"):
                 clip["in_point"] = max(0.0, in0 + delta * speed)
             d["changed"] = True
+        elif d["mode"] in ("fade_in", "fade_out"):
+            dx = (pos.x() - d["x0"]) / self.pps
+            v = d["f0"] + (dx if d["mode"] == "fade_in" else -dx)
+            v = max(0.0, min(clip["duration"] / 2, v))
+            clip["afade_in" if d["mode"] == "fade_in" else "afade_out"] = round(v, 3)
+            d["changed"] = True
+            self.liveChanged.emit()
+            self.update()
+            return
         elif d["mode"] == "trim_r":
             new_end = s0 + dur0 + dt
             if not no_snap:
@@ -614,7 +763,8 @@ class Timeline(QWidget):
         self.drag = None
         self.snap_line = None
         if d and d.get("changed"):
-            names = {"move": "Move clip", "trim_l": "Trim clip", "trim_r": "Trim clip"}
+            names = {"move": "Move clip", "trim_l": "Trim clip", "trim_r": "Trim clip", "fade_in": "Audio fade",
+                     "fade_out": "Audio fade"}
             self.edited.emit(names.get(d["mode"], "Edit"))
         self.update()
 
@@ -658,6 +808,11 @@ class Timeline(QWidget):
             m.addAction("Delete\tDel", lambda: self.contextAction.emit("delete"))
             m.addSeparator()
             m.addAction("Reset effects", lambda: self.contextAction.emit("reset_effects"))
+            if clip["kind"] == "video" and clip.has_sound:
+                m.addAction("Detach audio to its own track", lambda: self.contextAction.emit("detach_audio"))
+            if clip.get("trans_in", "none") != "none":
+                m.addAction("Remove transition", lambda: self.contextAction.emit("remove_transition"))
+            m.addAction("Add transition…", lambda: self.contextAction.emit("edit_transition"))
             if clip["kind"] in ("video", "image"):
                 m.addAction("Fit to canvas", lambda: self.contextAction.emit("fit"))
                 m.addAction("Fill canvas", lambda: self.contextAction.emit("fill"))

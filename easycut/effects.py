@@ -275,3 +275,48 @@ def audio_speed_pitch(clip, sample_rate=48000):
     else:
         parts += atempo_chain(speed)
     return parts
+
+
+# ---------------------------------------------------------------------- music / audio tools
+def has_audio_fx(clip):
+    return any([abs(float(clip.get("pan", 0))) > 0.001, float(clip.get("afade_in", 0)) > 0.001,
+                float(clip.get("afade_out", 0)) > 0.001, abs(float(clip.get("eq_low", 0))) > 0.05,
+                abs(float(clip.get("eq_mid", 0))) > 0.05, abs(float(clip.get("eq_high", 0))) > 0.05,
+                clip.get("compress"), float(clip.get("denoise", 0)) > 0.001, float(clip.get("reverb", 0)) > 0.001])
+
+
+def audio_fx_chain(clip, duration):
+    """Mixing-desk processing for a clip's sound (after speed/pitch). Times are clip-local seconds.
+
+    Order: clean-up -> EQ -> compressor -> reverb -> volume -> pan -> fades (as a studio channel strip)."""
+    out = []
+    nr = float(clip.get("denoise", 0))
+    if nr > 0.001:
+        out.append(f"afftdn=nr={6 + 30 * nr:.1f}:nf=-{40 + 15 * nr:.0f}:tn=1")
+    lo, mid, hi = (float(clip.get(k, 0)) for k in ("eq_low", "eq_mid", "eq_high"))
+    if abs(lo) > 0.05:
+        out.append(f"bass=g={lo:.2f}:f=110:w=0.6")
+    if abs(mid) > 0.05:
+        out.append(f"equalizer=f=1200:t=o:w=1.4:g={mid:.2f}")
+    if abs(hi) > 0.05:
+        out.append(f"treble=g={hi:.2f}:f=6500:w=0.6")
+    if clip.get("compress"):
+        out.append("acompressor=threshold=0.089:ratio=4:attack=12:release=180:makeup=2.2:knee=3")
+    rv = float(clip.get("reverb", 0))
+    if rv > 0.001:
+        out.append(f"aecho=0.85:0.9:43|71|113:{0.32 * rv:.3f}|{0.24 * rv:.3f}|{0.16 * rv:.3f}")
+    vol = float(clip.get("volume", 1.0))
+    if abs(vol - 1) > 1e-4:
+        out.append(f"volume={vol:.4f}")
+    pan = max(-1.0, min(1.0, float(clip.get("pan", 0))))
+    out.append("aformat=channel_layouts=stereo")
+    if abs(pan) > 0.001:
+        left, right = min(1.0, 1 - pan), min(1.0, 1 + pan)
+        out.append(f"pan=stereo|c0={left:.4f}*c0|c1={right:.4f}*c1")
+    fi = min(float(clip.get("afade_in", 0)), duration)
+    fo = min(float(clip.get("afade_out", 0)), duration)
+    if fi > 0.001:
+        out.append(f"afade=t=in:st=0:d={fi:.4f}:curve=qsin")
+    if fo > 0.001:
+        out.append(f"afade=t=out:st={max(0.0, duration - fo):.4f}:d={fo:.4f}:curve=qsin")
+    return out

@@ -1,0 +1,35 @@
+{
+  "id": "retro-fonts",
+  "name": "Retro & Script Fonts",
+  "version": "1.0.0",
+  "category": "Fonts",
+  "description": "Arcade, script and sci-fi fonts: Press Start 2P, Pacifico, Lobster, Audiowide and Orbitron.",
+  "min_app": "1.0.0",
+  "items": [
+    {
+      "type": "font",
+      "id": "fnt-press-start",
+      "name": "Press Start 2P"
+    },
+    {
+      "type": "font",
+      "id": "fnt-pacifico",
+      "name": "Pacifico"
+    },
+    {
+      "type": "font",
+      "id": "fnt-lobster",
+      "name": "Lobster"
+    },
+    {
+      "type": "font",
+      "id": "fnt-audiowide",
+      "name": "Audiowide"
+    },
+    {
+      "type": "font",
+      "id": "fnt-orbitron",
+      "name": "Orbitron"
+    }
+  ]
+}

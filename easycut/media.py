@@ -345,3 +345,16 @@ def waveform(path: str, points=400):
     a = np.abs(a[: n * (a.size // n)]).reshape(-1, n).max(axis=1)
     peak = a.max() or 1
     return (a / peak).tolist()
+
+
+def peak_db(path, start=0.0, duration=None):
+    """Loudest sample of a file's audio in dBFS (None if it can't be measured)."""
+    args = ["-ss", f"{max(0.0, start):.3f}"]
+    if duration:
+        args += ["-t", f"{duration:.3f}"]
+    try:
+        err = run(args + ["-i", path, "-vn", "-af", "volumedetect", "-f", "null", "-"], timeout=300).stderr
+    except Exception:
+        return None
+    m = re.search(r"max_volume:\s*(-?[\d.]+) dB", err.decode("utf-8", "replace"))
+    return float(m.group(1)) if m else None

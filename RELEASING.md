@@ -32,23 +32,49 @@ Settings, themes and extensions in `%APPDATA%\Easy-Cut` are kept.
 To add release notes to the update bar, run `python tools\release.py release\EasyCutSetup-0.1.1.exe "Your notes"`
 before publishing.
 
-## Extensions
+## Packs (extensions)
 
-An extension is a folder in `extensions/<id>/` holding `manifest.json` and `main.py` (copy `extensions/_template`,
-which is a working example that adds a filter, an animation and a video effect).
+Each pack is a folder in `extensions/<id>/` containing `manifest.json`, `main.py`, and any files it bundles
+(fonts, for example). `extensions/_template` is a working example to copy.
+
+```json
+{"id": "my-pack", "name": "My Pack", "version": "1.0.0", "category": "Effects",
+ "description": "...", "min_app": "1.0.0",
+ "items": [{"type": "effect", "id": "my-fx", "name": "My FX"}]}
+```
+
+- **category:** one of Filters, Transitions, Animations, Effects, Text or Fonts. It decides where the pack shows
+  on the Extensions screen.
+- **items:** lists everything the pack registers. The browsers use this list to show the items greyed out
+  before anyone downloads the pack. `tools/build_catalog.py` checks that it matches what `main.py` actually
+  registers.
 
 ```python
 def register(api):
-    api.register_filter(id, name, matrix=3x3, contrast=1.0, brightness=0.0, lift=0.0)   # or ffmpeg=..., preview=...
-    api.register_animation(id, name, scale="...", dx="...", dy="...", fade=False)     # expressions in E (0..1)
-    api.register_effect(id, name, ffmpeg="filter chain using {amount}", preview=fn(bgr, amount))
+    api.register_filter(id, name, matrix=3x3, contrast=1.0, brightness=0.0, lift=0.0)
+    api.register_transition(id, name, scale="...", dx="...", dy="...", rot="...", alpha="fade|half|none",
+                            veil="#rrggbb" or None, reveal="left|right|up|down" or None)
+    api.register_animation(id, name, scale="...", dx="...", dy="...", rot="...", fade=False, reveal=None, steps=0)
+    api.register_effect(id, name, ffmpeg="chain" or fn(amount, w, h, uid), preview=fn(bgr, amount))
+    api.register_text_style(id, name, paint=fn(painter, ctx), pad=0.2)
+    api.register_font(id, name, "fonts/MyFont.ttf")
 ```
 
-Items an extension registers appear in the Filters, Animations and Effects panels automatically.
-The Extensions page lists everything in the manifest, with Install, Update and Remove buttons.
+Motion expressions use `E` (eased progress) and `P` (linear progress). See `easycut/animations.py`.
 
-- **Publish or update extensions without an app release:** raise `version` in the extension's manifest, then run
-  `publish_extensions.bat` (all extensions) or `publish_extensions.bat <id>` (just one).
+**Publishing:**
+- `build.bat` rebuilds the bundled catalog (`assets/catalog`), packages every pack into `updates/extensions/`
+  and lists them in `updates/manifest.json`.
+- `publish.bat` pushes all of that along with the app.
+- To update packs without an app release:
+  1. Raise `version` in the pack's manifest.
+  2. Run `publish_extensions.bat <id>`.
+  3. Installed copies offer the update the next time they start.
+
+**Adding a brand-new pack:**
+- Add the folder and run `publish_extensions.bat`. It appears in existing installs straight away, because the
+  online manifest lists its items.
+- Its locked previews only get thumbnails once you run `build.bat` for the next app version.
 - **Test locally:** zip the folder and use *Extensions ▸ Install from file…*.
 - Folders starting with `_` are never published.
-- `min_app` in an extension's manifest hides it from app versions too old to run it.
+- `min_app` hides a pack from app versions too old to run it.
